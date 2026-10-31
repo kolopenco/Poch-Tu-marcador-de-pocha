@@ -2,7 +2,7 @@
 
 ## 1.2.3 (solo web)
 - Aviso de **versión nueva** con botón «Actualizar» al abrir o volver a la app (el iPhone deja la app dormida y no se recargaba sola).
-- Ajustes › **Buscar actualizaciones**: comprueba y recarga la app.
+- Ajustes › **Recargar página** (abajo del todo): vuelve a cargar la app al momento.
 - En la app de pantalla de inicio del iPhone, **deslizar desde el borde izquierdo** vuelve atrás, como en cualquier app.
 
 ## 1.2.2
