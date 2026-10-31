@@ -178,7 +178,8 @@ final class Cloud {
 
     static String inviteText(Group g) {
         return "Únete a mi grupo de Poch! «" + g.name + "»:\n" + inviteLink(g)
-                + "\n\niPhone: abre el enlace en Safari.\nAndroid: copia este mensaje y en Poch! ve a Ajustes › Grupos de juego › Unirse.";
+                + "\n\nCopia este mensaje y en Poch! ve a Ajustes › Grupos de juego › Unirse (se pega solo)."
+                + "\niPhone: hazlo desde el icono de Poch! de tu pantalla de inicio. Si aún no la tienes, abre el enlace en Safari y añádela a la pantalla de inicio antes de unirte.";
     }
 
     /** Acepta el enlace, el mensaje entero o solo el código. Devuelve un grupo sin unir, o null. */
@@ -310,10 +311,11 @@ final class Cloud {
 
     private static void writeMember(Host h, Group g) throws Exception {
         Player me = g.me == null ? null : player(h, g.me);
+        String name = me != null ? me.name : g.me != null && g.meName != null ? g.meName : "";
         JSONObject f = new JSONObject();
         f.put("key", strF(g.key));
         f.put("player", strF(g.me == null ? "" : remoteId(g, g.me)));
-        f.put("name", strF(me == null ? "" : me.name));
+        f.put("name", strF(name));
         f.put("joined", strF(String.valueOf(System.currentTimeMillis())));
         JSONObject w = new JSONObject().put("update", new JSONObject().put("name", docPath(g, "members/" + g.uid)).put("fields", f));
         http("POST", commitUrl(g), new JSONObject().put("writes", new JSONArray().put(w)), TOKENS.get(g)[0]);
@@ -374,12 +376,21 @@ final class Cloud {
         final Map<String, Integer> claimed = new HashMap<>();
     }
 
+    /** Identidades «a medio unirse» (grupo → refresh): si se vuelve a abrir la invitación se reutilizan. */
+    private static final Map<String, String> JOINING = new HashMap<>();
+
     /** Primer paso de unirse: entra con la clave y descarga jugadores y partidas (sin aplicarlos aún). */
     static JoinData joinFetch(Host h, Group inv) throws Exception {
         JoinData d = new JoinData();
         Group g = inv;
         g.owner = false;
-        signUp(g);
+        synchronized (JOINING) { g.refresh = JOINING.get(g.id + "|" + g.apiKey); }
+        if (g.refresh != null) {
+            try { token(h, g); } catch (CloudException e) { if (e.offline) throw e; g.refresh = null; }
+        }
+        if (g.refresh == null || TOKENS.get(g) == null) signUp(g);
+        synchronized (JOINING) { JOINING.put(g.id + "|" + g.apiKey, g.refresh); }
+        // Entra sin nombre (hace falta para ver los jugadores); no cuenta como miembro hasta confirmar
         writeMember(h, g);
         String tk = TOKENS.get(g)[0];
         try {
@@ -398,7 +409,7 @@ final class Cloud {
             try { d.games.add(Json.game(new JSONObject(f.get("json")))); } catch (Exception ignored) { }
         }
         try {
-            for (Member m : members(h, g)) {
+            for (Member m : allMembers(h, g)) {
                 if (m.uid.equals(g.uid) || m.player == null || m.player.isEmpty()) continue;
                 Integer c = d.claimed.get(m.player);
                 d.claimed.put(m.player, c == null ? 1 : c + 1);
@@ -408,8 +419,17 @@ final class Cloud {
         return d;
     }
 
-    /** Segundo paso: aplica el emparejamiento (idGrupo → idLocal|null) y queda unido. */
-    static SyncResult joinApply(Host h, Group g, Map<String, String> map, String meRemote, Player meNew) throws Exception {
+    /** Se ha salido de «¿Quién eres tú?» sin confirmar: se borra la entrada provisional. */
+    static void joinCancel(Group g) {
+        try {
+            String[] t = TOKENS.get(g);
+            if (t != null) http("DELETE", FS + "/" + docPath(g, "members/" + g.uid), null, t[0]);
+        } catch (Exception ignored) { }
+    }
+
+    /** Segundo paso: aplica el emparejamiento (idGrupo → idLocal|null) y queda unido. meName: nombre del jugador del grupo elegido. */
+    static SyncResult joinApply(Host h, Group g, Map<String, String> map, String meRemote, Player meNew, String meName) throws Exception {
+        g.meName = meNew != null ? meNew.name : meName;
         h.main(() -> {
             g.ids.clear();
             for (Map.Entry<String, String> e : map.entrySet()) if (e.getValue() != null) g.ids.put(e.getKey(), e.getValue());
@@ -427,8 +447,10 @@ final class Cloud {
             h.groups().add(g);
             h.save();
         });
-        // Primero, «tú» en el grupo (para que otro móvil tuyo te encuentre en la lista); luego lo demás
+        // Primero quién eres (ya cuentas como miembro), luego «tú» en la lista de jugadores, luego lo demás
         try {
+            writeMember(h, g);
+            synchronized (JOINING) { JOINING.remove(g.id + "|" + g.apiKey); }
             final List<String> mine = new ArrayList<>();
             final JSONArray w = new JSONArray();
             h.main(() -> {
@@ -447,7 +469,6 @@ final class Cloud {
                 commit(h, g, w);
                 h.main(() -> { g.dirtyPlayers.removeAll(mine); g.roster.add(remoteId(g, g.me)); h.save(); });
             }
-            writeMember(h, g);
         } catch (CloudException e) {
             SyncResult r = new SyncResult();
             r.error = explain(e);
@@ -476,9 +497,23 @@ final class Cloud {
 
     static final class Member {
         String uid, player, name;
+        long joined;
     }
 
+    /** Móviles que ya han dicho quién son. Al creador se le borran los intentos a medias de hace más de una hora. */
     static List<Member> members(Host h, Group g) throws Exception {
+        List<Member> all = allMembers(h, g), out = new ArrayList<>();
+        for (Member m : all) {
+            boolean unconfirmed = m.player == null || m.player.isEmpty();
+            if (!unconfirmed || m.uid.equals(g.uid)) { out.add(m); continue; }
+            if (g.owner && System.currentTimeMillis() - m.joined > 3600_000L) {
+                try { removeMember(h, g, m.uid); } catch (Exception ignored) { }
+            }
+        }
+        return out;
+    }
+
+    private static List<Member> allMembers(Host h, Group g) throws Exception {
         String tk = token(h, g);
         Object r = http("GET", FS + "/" + docPath(g, "members") + "?pageSize=300", null, tk);
         List<Member> out = new ArrayList<>();
@@ -489,6 +524,7 @@ final class Cloud {
             Map<String, String> f = fields(d);
             Member m = new Member();
             m.uid = docId(d); m.player = f.get("player"); m.name = f.get("name");
+            try { m.joined = Long.parseLong(f.get("joined")); } catch (Exception ignored) { }
             out.add(m);
         }
         return out;
@@ -653,6 +689,10 @@ final class Cloud {
             g.lastSync = System.currentTimeMillis();
             h.save();
         });
+        // Una vez: vuelve a apuntar el nombre de este móvil en el grupo (antes podía quedar vacío)
+        if (g.memberV != 2 && g.me != null && player(h, g.me) != null) {
+            try { writeMember(h, g); g.memberV = 2; h.main(h::save); } catch (Exception ignored) { }
+        }
         return res;
     }
 

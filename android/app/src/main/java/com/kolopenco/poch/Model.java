@@ -52,6 +52,10 @@ final class Model {
         List<String> dirtyPlayers = new ArrayList<>();
         String lastPlayers, lastGames;
         long lastSync;
+        /** Nombre de «tú» al unirse, por si aún no está entre los jugadores del móvil. */
+        String meName;
+        /** 2 = el nombre de este móvil ya está bien apuntado en el grupo. */
+        int memberV;
     }
 
     static final class Rules {

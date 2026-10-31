@@ -6,7 +6,7 @@
  *
  * Firestore:
  *   groups/{g}                 { name, owner, key, created }
- *   groups/{g}/members/{uid}   { key, player, name, joined }
+ *   groups/{g}/members/{uid}   { key, player, name, joined }   (player vacío = aún sin confirmar quién es)
  *   groups/{g}/players/{id}    { json, updatedAt }
  *   groups/{g}/games/{id}      { json, updatedAt, by, deleted }
  *
@@ -64,7 +64,8 @@
   P.inviteCode = (g) => b64u(JSON.stringify({ v: 1, p: g.projectId, k: g.apiKey, g: g.id, s: g.key, n: g.name }));
   P.inviteLink = (g) => P.WEB_URL + '#unirse=' + P.inviteCode(g);
   P.inviteText = (g) => 'Únete a mi grupo de Poch! «' + g.name + '»:\n' + P.inviteLink(g)
-    + '\n\niPhone: abre el enlace en Safari.\nAndroid: copia este mensaje y en Poch! ve a Ajustes › Grupos de juego › Unirse.';
+    + '\n\nCopia este mensaje y en Poch! ve a Ajustes › Grupos de juego › Unirse (se pega solo).'
+    + '\niPhone: hazlo desde el icono de Poch! de tu pantalla de inicio. Si aún no la tienes, abre el enlace en Safari y añádela a la pantalla de inicio antes de unirte.';
   /** Acepta el enlace, el mensaje entero o solo el código. */
   P.parseInvite = (text) => {
     const t = String(text || '').trim();
@@ -101,6 +102,11 @@
     tokens[g.id] = { idToken: r.idToken, exp: Date.now() + (Number(r.expiresIn || 3600) - 120) * 1000 };
   }
 
+  // Identidad «a medio unirse»: si se vuelve a abrir la invitación se reutiliza en vez de crear otra
+  const JKEY = 'poch.joining';
+  const joining = () => { try { return JSON.parse(localStorage.getItem(JKEY) || '{}') || {}; } catch (e) { return {}; } };
+  const setJoining = (id, v) => { try { const o = joining(); if (v) o[id] = v; else delete o[id]; localStorage.setItem(JKEY, JSON.stringify(o)); } catch (e) { /* da igual */ } };
+
   async function token(g) {
     const t = tokens[g.id];
     if (t && t.exp > Date.now()) return t.idToken;
@@ -135,11 +141,12 @@
 
   function writeMember(g) {
     const me = g.me ? P.player(g.me) : null;
+    const name = me ? me.name : (g.me && g.meName) || '';
     return http('POST', EP.fs + '/projects/' + g.projectId + '/databases/(default)/documents:commit', {
       writes: [{
         update: {
           name: docPath(g, 'members/' + g.uid),
-          fields: { key: strF(g.key), player: strF(remoteId(g, g.me) || ''), name: strF(me ? me.name : ''), joined: strF(Date.now()) },
+          fields: { key: strF(g.key), player: strF(remoteId(g, g.me) || ''), name: strF(name), joined: strF(Date.now()) },
         },
       }],
     }, tokens[g.id].idToken);
@@ -187,7 +194,14 @@
   /** Primer paso de unirse: entra con la clave y descarga jugadores y partidas del grupo (sin aplicarlos aún). */
   P.joinFetch = async (inv) => {
     const g = { id: inv.id, key: inv.key, name: inv.name, apiKey: inv.apiKey, projectId: inv.projectId, owner: false, me: null, ids: {}, roster: {}, pending: [], lastPlayers: null, lastGames: null, lastSync: 0 };
-    await signUp(g);
+    const prev = joining()[g.id];
+    if (prev && prev.refresh && prev.apiKey === g.apiKey) { g.refresh = prev.refresh; delete tokens[g.id]; }
+    if (g.refresh) {
+      try { await token(g); } catch (e) { if (e.offline) throw e; g.refresh = null; }
+    }
+    if (!g.refresh || !tokens[g.id]) await signUp(g);
+    setJoining(g.id, { refresh: g.refresh, apiKey: g.apiKey });
+    // Entra sin nombre (necesario para ver los jugadores); no cuenta como miembro hasta confirmar
     await writeMember(g);
     const tk = tokens[g.id].idToken;
     try { const gd = fields(await http('GET', EP.fs + '/' + docPath(g), null, tk)); if (gd.name) g.name = gd.name; } catch (e) { /* el nombre de la invitación vale */ }
@@ -204,8 +218,16 @@
     return { g, players, games, claimed };
   };
 
+  /** Se ha salido de «¿Quién eres tú?» sin confirmar: se borra la entrada provisional. */
+  P.joinCancel = async (g) => {
+    try { if (tokens[g.id]) await http('DELETE', EP.fs + '/' + docPath(g, 'members/' + g.uid), null, tokens[g.id].idToken); } catch (e) { /* la limpia el creador */ }
+  };
+  const unconfirmed = (m) => !m.player;
+
   /** Segundo paso: aplica el emparejamiento elegido (map: idGrupo → idLocal|null) y queda unido. */
-  P.joinApply = async (g, map, meRemote, meNewName) => {
+  P.joinApply = async (g, map, meRemote, meNewName, meName) => {
+    // Nombre de quien se une, aunque aún no esté entre los jugadores de este móvil (se baja al sincronizar)
+    g.meName = meNewName || meName || '';
     g.ids = {};
     for (const r of Object.keys(map)) if (map[r]) g.ids[r] = map[r];
     if (meNewName) {
@@ -217,8 +239,10 @@
     if (!meNewName && meRemote && !Object.prototype.hasOwnProperty.call(map, meRemote)) g.dirtyPlayers = [g.me];
     st.groups = (st.groups || []).filter((x) => x.id !== g.id).concat([g]);
     P.save();
-    // Primero, «tú» en el grupo (para que otro móvil tuyo te encuentre en la lista); luego lo demás
+    // Primero quién eres (ya cuentas como miembro), luego «tú» en la lista de jugadores, luego lo demás
     try {
+      await writeMember(g);
+      setJoining(g.id, null);
       const p = g.me && (g.dirtyPlayers || []).indexOf(g.me) >= 0 ? P.player(g.me) : null;
       if (p) {
         const rid = remoteId(g, p.id);
@@ -227,7 +251,6 @@
         g.dirtyPlayers = g.dirtyPlayers.filter((x) => x !== p.id);
         P.save();
       }
-      await writeMember(g);
     } catch (e) { return { newGames: 0, updatedGames: 0, players: 0, uploaded: 0, error: e }; }
     try { return await P.syncGroup(g); } catch (e) { return { newGames: 0, updatedGames: 0, players: 0, uploaded: 0, error: e }; }
   };
@@ -250,10 +273,19 @@
     P.save();
   };
 
+  /** Móviles del grupo que ya han dicho quién son. Al creador se le borran los intentos a medias de hace más de una hora. */
   P.groupMembers = async (g) => {
     const tk = await token(g);
     const r = await http('GET', EP.fs + '/' + docPath(g, 'members') + '?pageSize=300', null, tk);
-    return ((r && r.documents) || []).map((d) => Object.assign({ uid: docId(d) }, fields(d)));
+    const all = ((r && r.documents) || []).map((d) => Object.assign({ uid: docId(d) }, fields(d)));
+    if (g.owner) {
+      for (const m of all) {
+        if (m.uid !== g.uid && unconfirmed(m) && Date.now() - Number(m.joined || 0) > 3600e3) {
+          http('DELETE', EP.fs + '/' + docPath(g, 'members/' + m.uid), null, tk).catch(() => {});
+        }
+      }
+    }
+    return all.filter((m) => m.uid === g.uid || !unconfirmed(m));
   };
 
   P.removeMember = async (g, uid) => {
@@ -390,6 +422,8 @@
     g.deleted = [];
     g.dirtyPlayers = [];
     g.lastSync = Date.now();
+    // Una vez: vuelve a apuntar el nombre de este móvil en el grupo (antes podía quedar vacío)
+    if (g.memberV !== 2 && g.me && P.player(g.me)) { try { await writeMember(g); g.memberV = 2; } catch (e) { /* otra vez será */ } }
     P.save();
     return res;
   };

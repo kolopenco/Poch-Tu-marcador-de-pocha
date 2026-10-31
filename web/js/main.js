@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const P = window.P, E = window.Engine, h = P.h, st = P.st;
-  P.VERSION = '1.2.3';
+  P.VERSION = '1.2.4';
 
   const TABS = [['Partida', 'trophy'], ['Historial', 'list'], ['Jugadores', 'people'], ['Estadísticas', 'chart'], ['Ajustes', 'gear']];
   let tab = 0, shown = null;
@@ -12,7 +12,7 @@
 
   P.tab = () => tab;
   P.standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isIOS = P.isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   P.installText = () => isIOS()
     ? 'En Safari, pulsa el botón Compartir (el cuadrado con la flecha hacia arriba) y elige «Añadir a pantalla de inicio».\n\nTendrás el icono de Poch! como una app más: pantalla completa y funcionando sin Internet.'
     : 'En el menú del navegador (los tres puntos) elige «Instalar aplicación» o «Añadir a pantalla de inicio».\n\nEn Android también puedes instalar la app nativa desde la página del proyecto en GitHub.';

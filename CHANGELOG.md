@@ -1,5 +1,11 @@
 # Novedades
 
+## 1.2.3 (Android) · 1.2.4 (web)
+- Unirse a un grupo: **solo cuentas como miembro cuando confirmas quién eres**. Si sales de «¿Quién eres tú?» sin confirmar, no se queda nada en el grupo; si vuelves a abrir la invitación se reaprovecha la misma entrada.
+- Arreglado: al elegirte de la lista de jugadores del grupo, tu nombre se quedaba vacío y el creador te veía como «Sin nombre». Al actualizar, cada móvil vuelve a apuntar su nombre solo.
+- Los intentos de unirse a medias ya no salen en «Móviles en el grupo» y se borran solos pasada una hora.
+- La invitación explica que en iPhone hay que unirse desde el icono de la pantalla de inicio (Safari es otra app y no comparte nada con ella). En Safari, la pantalla de unirse lo avisa.
+
 ## 1.2.3 (solo web)
 - Aviso de **versión nueva** con botón «Actualizar» al abrir o volver a la app (el iPhone deja la app dormida y no se recargaba sola).
 - Ajustes › **Recargar página** (abajo del todo): vuelve a cargar la app al momento.

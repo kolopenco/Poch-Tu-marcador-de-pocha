@@ -316,6 +316,9 @@ class JoinScreen extends Screen {
 
     @Override boolean onBack() {
         if (fetched != null && !busy) {
+            // Sale sin confirmar quién es: no se queda nada en el grupo
+            final Group g = fetched.group;
+            Sync.run(a, () -> { Cloud.joinCancel(g); return true; }, v -> { }, e -> { });
             fetched = null;
             a.refresh();
             return true;
@@ -496,7 +499,10 @@ class JoinScreen extends Screen {
         final String mr = meRemote;
         final Player mn = meNew;
         final Group g = fetched.group;
-        Sync.run(a, () -> Cloud.joinApply(Sync.host(a), g, map, mr, mn), r -> {
+        String nm = null;
+        if (mr != null) for (Player p : fetched.players) if (p.id.equals(mr)) nm = p.name;
+        final String meName = nm;
+        Sync.run(a, () -> Cloud.joinApply(Sync.host(a), g, map, mr, mn, meName), r -> {
             busy = false;
             st.saveLastGroup(g.id);
             a.popToRoot(a.tab);
@@ -609,7 +615,8 @@ class GroupDetail extends Screen {
         } else {
             for (Cloud.Member m : members) {
                 boolean mine = m.uid.equals(g.uid);
-                String nm = m.name == null || m.name.isEmpty() ? "Sin nombre" : m.name;
+                Player lp = m.player == null || m.player.isEmpty() ? null : st.player(Cloud.localId(g, m.player));
+                String nm = lp != null ? lp.name : m.name == null || m.name.isEmpty() ? "Jugador del grupo" : m.name;
                 LinearLayout r = Ui.h();
                 r.setBackground(Ui.round(Theme.SURFACE, 14, Theme.BORDER, 1));
                 Ui.pad(r, 14, 10, 10, 10);

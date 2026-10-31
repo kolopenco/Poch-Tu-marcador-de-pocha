@@ -129,8 +129,13 @@
     let who;
     S.build = () => {
       const root = h('div', { class: 'screen' });
-      root.appendChild(P.cheader('Unirse a un grupo', P.pop));
+      root.appendChild(P.cheader('Unirse a un grupo', () => { S.onBack(); P.pop(); }));
       const body = h('div', { class: 'body' });
+      if (P.isIOS() && !P.standalone()) {
+        body.appendChild(h('div', { class: 'banner', style: { marginBottom: '12px' } }, P.icon('info', 'var(--blue-text)', 20),
+          h('div', { class: 'grow', style: { fontWeight: '400', fontSize: '14px', lineHeight: '1.45' } },
+            h('b', null, 'Estás en Safari. '), 'Si tienes Poch! en la pantalla de inicio, únete desde allí: es otra app y lo que hagas aquí no aparece en ella. Copia la invitación y en el icono de Poch! ve a Ajustes › Grupos de juego › Unirse.')));
+      }
       if (!S.fetched) {
         body.appendChild(h('div', { class: 'text2', style: { fontSize: '14px', lineHeight: '1.5', margin: '0 2px 12px' } }, 'Pega la invitación que te han mandado (el enlace o el mensaje entero).'));
         const ta = h('textarea', { class: 'input', rows: 5, placeholder: 'https://…#unirse=…', style: { fontSize: '14px', resize: 'vertical' } });
@@ -166,6 +171,8 @@
       root.append(S.scrollEl, h('div', { class: 'foot' }, P.primary(S.busy ? 'Uniendo…' : 'Unirme al grupo', apply, !S.busy)));
       return root;
     };
+    // Salir sin confirmar quién eres: no se queda nada en el grupo
+    S.onBack = () => { if (S.fetched && !S.joined) { P.joinCancel(S.fetched.g); S.fetched = null; } return false; };
     async function fetch1() {
       const inv = P.parseInvite(S.text);
       if (!inv) { P.info('Invitación no válida', 'No reconozco la invitación. Copia el enlace completo que te mandaron.'); return; }
@@ -199,12 +206,13 @@
       if (w.newName !== undefined && (P.nameTaken(w.newName) || S.fetched.players.some((p) => E.norm(p.name) === E.norm(w.newName)))) { P.toast('Ese nombre ya existe'); return; }
       S.busy = true; P.refresh();
       try {
-        const r = await P.joinApply(S.fetched.g, S.map, w.id, w.newName);
+        S.joined = true;
+        const r = await P.joinApply(S.fetched.g, S.map, w.id, w.newName, w.id ? (S.fetched.players.find((p) => p.id === w.id) || {}).name : null);
         P.popToRoot(P.tab());
         if (P.tab() === 4) P.push(P.Groups()); else P.refresh();
         if (r.error) { P.info('Ya estás en «' + S.fetched.g.name + '»', 'Pero no se ha podido terminar de sincronizar: ' + P.syncError(r.error) + '\n\nSe volverá a intentar al abrir la app. Si sigue fallando, avisa a quien creó el grupo.'); return; }
         P.info('¡Ya estás en «' + S.fetched.g.name + '»!', 'Se han descargado ' + P.plural(r.newGames, 'partida', 'partidas') + '. A partir de ahora, al abrir la app se bajan las novedades y cada partida se sube al cerrarla.\n\nAl crear una partida, elige el grupo para que se comparta.');
-      } catch (e) { S.busy = false; P.refresh(); P.info('No se pudo unir', P.syncError(e)); }
+      } catch (e) { S.joined = false; S.busy = false; P.refresh(); P.info('No se pudo unir', P.syncError(e)); }
     }
     return S;
   }
@@ -271,7 +279,7 @@
           if (i) mb.appendChild(h('div', { class: 'hr' }));
           const lp = P.player((g.ids && g.ids[m.player]) || m.player);
           mb.appendChild(h('div', { class: 'row', style: { padding: '8px 0' } }, lp ? P.dot(lp.color, 18) : P.icon('people', 'var(--muted)', 18),
-            h('div', { class: 'grow ell', style: { fontWeight: '500' } }, (lp ? lp.name : m.name || 'Sin nombre') + (m.uid === g.uid ? ' (este móvil)' : '')),
+            h('div', { class: 'grow ell', style: { fontWeight: '500' } }, (lp ? lp.name : m.name || 'Jugador del grupo') + (m.uid === g.uid ? ' (este móvil)' : '')),
             g.owner && m.uid !== g.uid ? h('button', { class: 'chip', onclick: () => P.confirm('Quitar del grupo', 'Este móvil dejará de ver las partidas del grupo. Si tiene la invitación podría volver a entrar: cambia la invitación para evitarlo.', 'Quitar', true, async () => {
               try { await P.removeMember(g, m.uid); P.refresh(); } catch (e) { P.info('No se pudo quitar', P.syncError(e)); }
             }) }, 'Quitar') : null));

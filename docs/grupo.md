@@ -70,10 +70,10 @@ const firebaseConfig = {
 
 ## Para tus amigos
 
-- **iPhone:** abrir el enlace de la invitación en Safari. Poch! se abre y pregunta quién eres.
+- **iPhone:** primero, tener Poch! en la pantalla de inicio (abrir la web en Safari › Compartir › «Añadir a pantalla de inicio»). Después, copiar el mensaje de la invitación y, **desde el icono de Poch!**, ir a **Ajustes › Grupos de juego › Unirse** (o tocar «¿Quieres unirte?» en la pantalla principal). Ojo: si te unes en Safari, la app de la pantalla de inicio no se entera; son dos apps distintas.
 - **Android:** copiar el mensaje de la invitación y en Poch! ir a **Ajustes › Grupos de juego › Unirse con una invitación** (se pega solo). También se puede *Compartir* el mensaje con Poch!.
 
-Al unirse, cada uno dice **quién es** y, si ya tenía jugadores en su móvil, puede **unirlos** con los del grupo para que se sumen sus partidas y estadísticas.
+Al unirse, cada uno **tiene que decir quién es** (elegirse en la lista o escribir su nombre): hasta que no lo confirma, no entra en el grupo. Si ya tenía jugadores en su móvil, puede **unirlos** con los del grupo para que se sumen sus partidas y estadísticas.
 
 ## Cómo funciona
 

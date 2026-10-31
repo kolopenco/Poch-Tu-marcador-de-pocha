@@ -342,6 +342,8 @@ final class Json {
         if (g.lastPlayers != null) o.put("lastPlayers", g.lastPlayers);
         if (g.lastGames != null) o.put("lastGames", g.lastGames);
         o.put("lastSync", g.lastSync);
+        if (g.meName != null) o.put("meName", g.meName);
+        o.put("memberV", g.memberV);
         return o;
     }
 
@@ -362,6 +364,8 @@ final class Json {
         g.lastPlayers = o.has("lastPlayers") ? o.optString("lastPlayers") : null;
         g.lastGames = o.has("lastGames") ? o.optString("lastGames") : null;
         g.lastSync = o.optLong("lastSync", 0);
+        g.meName = o.has("meName") ? o.optString("meName") : null;
+        g.memberV = o.optInt("memberV", 0);
         return g;
     }
 
