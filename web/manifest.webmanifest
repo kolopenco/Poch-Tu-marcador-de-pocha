@@ -1,0 +1,17 @@
+{
+  "name": "Poch! · Marcador de La Pocha",
+  "short_name": "Poch!",
+  "description": "Marcador, historial y estadísticas para partidas de La Pocha.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080F1D",
+  "theme_color": "#080F1D",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,64 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.kolopenco.poch'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.kolopenco.poch'
+        minSdk 24
+        targetSdk 35
+        versionCode 6
+        versionName 'Beta 1.1.0'
+    }
+
+    // La clave de firma no está en el repositorio: la compilación de GitHub la recibe por secretos.
+    // Es siempre la misma, para que cada versión se instale encima de la anterior sin perder datos.
+    signingConfigs {
+        dev {
+            def ks = file('../signing/poch.keystore')
+            if (ks.exists()) {
+                storeFile ks
+                storePassword System.getenv('POCH_KEY_PASSWORD')
+                keyAlias 'poch'
+                keyPassword System.getenv('POCH_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            if (file('../signing/poch.keystore').exists()) signingConfig signingConfigs.dev
+        }
+        release {
+            if (file('../signing/poch.keystore').exists()) signingConfig signingConfigs.dev
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+        encoding 'UTF-8'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+}

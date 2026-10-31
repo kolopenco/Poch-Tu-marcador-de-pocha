@@ -1,0 +1,77 @@
+name: Android (APK en Releases)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publicar el APK como nueva versión en Releases'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Versión
+        id: v
+        run: |
+          NAME=$(grep -oP "versionName '\K[^']+" android/app/build.gradle)
+          NUM=$(echo "$NAME" | grep -oP '[0-9]+\.[0-9]+\.[0-9]+')
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "num=$NUM" >> "$GITHUB_OUTPUT"
+          echo "Versión: $NAME"
+
+      - name: Clave de firma (secreto del repositorio)
+        env:
+          KS: ${{ secrets.POCH_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KS" ]; then
+            echo "::error::Falta el secreto POCH_KEYSTORE_B64 (Settings › Secrets and variables › Actions)."
+            exit 1
+          fi
+          mkdir -p android/signing
+          echo "$KS" | base64 -d > android/signing/poch.keystore
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+
+      - name: Compilar y pasar las pruebas
+        working-directory: android
+        env:
+          POCH_KEY_PASSWORD: ${{ secrets.POCH_KEY_PASSWORD }}
+        run: gradle assembleRelease testReleaseUnitTest --no-daemon --stacktrace
+
+      - name: Preparar APK
+        run: |
+          mkdir out
+          cp android/app/build/outputs/apk/release/app-release.apk out/Poch.apk
+          rm -f android/signing/poch.keystore
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Poch-${{ steps.v.outputs.num }}-apk
+          path: out/Poch.apk
+
+      - name: Publicar en Releases
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.v.outputs.num }}"
+          NOTES=$(awk -v v="${{ steps.v.outputs.num }}" 'index($0, "## " v) == 1 {f=1; next} /^## /{f=0} f' CHANGELOG.md)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/Poch.apk --clobber
+          else
+            gh release create "$TAG" out/Poch.apk --title "Poch! ${{ steps.v.outputs.name }}" --notes "$NOTES" --target "${{ github.sha }}"
+          fi
