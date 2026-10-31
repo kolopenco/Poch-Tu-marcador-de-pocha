@@ -381,7 +381,8 @@ class BackupScreen extends Screen {
         info.addView(Ui.kv("Última copia", lb == 0 ? "Nunca" : Ui.dateTime(lb)));
         body.addView(info, Ui.cardLp());
 
-        TextView t = Ui.tv("La copia es un archivo con jugadores, partidas (también la que está en curso), reglas y estadísticas. Puedes guardarla en el móvil o en Google Drive.",
+        TextView t = Ui.tv("La copia es un archivo con jugadores, partidas (también la que está en curso), reglas y estadísticas. Puedes guardarla en el móvil o en Google Drive."
+                        + (st.groups.isEmpty() ? "" : "\n\nTambién guarda tus grupos de juego: al restaurarla en otro móvil sigues dentro (y como creador, si lo eres). Por eso no se la pases a nadie: para compartir partidas, que se unan al grupo."),
                 13, Theme.MUTED, Theme.REG);
         t.setLineSpacing(dp(2), 1);
         t.setPadding(dp(2), dp(2), 0, dp(14));
@@ -492,12 +493,15 @@ class BackupScreen extends Screen {
     private void apply(Backup.Data d, boolean keepPrev, String title) {
         try {
             boolean ok = st.replaceAll(d, keepPrev);
+            Sync.quiet(a, false);
             a.popToRoot(0);
             stacksRefresh();
             if (ok) {
                 a.info(title, "Restauración verificada: " + Ui.plural(st.players.size(), "jugador", "jugadores") + ", "
                         + Ui.plural(st.games.size(), "partida", "partidas") + " y "
-                        + Ui.plural(st.profiles.size(), "perfil", "perfiles") + ". Todo coincide con la copia.");
+                        + Ui.plural(st.profiles.size(), "perfil", "perfiles")
+                        + (st.groups.isEmpty() ? "" : " y " + Ui.plural(st.groups.size(), "grupo de juego", "grupos de juego") + ", que se sincronizan ahora")
+                        + ". Todo coincide con la copia.");
             } else {
                 a.info("Revisa los datos", "Los datos se han restaurado, pero la comprobación final no coincide del todo con la copia. Si ves algo raro, usa «Recuperar datos anteriores».");
             }
@@ -632,6 +636,7 @@ class MergeScreen extends Screen {
         try {
             Backup.MergeResult r = Backup.merge(st.snapshot(), in, map);
             boolean ok = st.replaceAll(r.data, true);
+            Sync.quiet(a, false);
             a.popToRoot(a.tab);
             a.refresh();
             StringBuilder sb = new StringBuilder();
@@ -642,6 +647,7 @@ class MergeScreen extends Screen {
             sb.append("\u2022 ").append(Ui.plural(r.newPlayers, "jugador nuevo", "jugadores nuevos")).append(", ")
                     .append(r.mergedPlayers).append(" unidos con los tuyos");
             if (r.newProfiles > 0) sb.append("\n\u2022 ").append(Ui.plural(r.newProfiles, "perfil de reglas nuevo", "perfiles de reglas nuevos"));
+            if (r.newGroups > 0) sb.append("\n\u2022 ").append(Ui.plural(r.newGroups, "grupo de juego", "grupos de juego"));
             if (!ok) sb.append("\n\nLa comprobación final no coincide del todo. Si ves algo raro, usa «Recuperar datos anteriores» en Copias de seguridad.");
             else sb.append("\n\nSi algo no te convence, en Copias de seguridad puedes «Recuperar datos anteriores».");
             a.info("Copia mezclada", sb.toString());

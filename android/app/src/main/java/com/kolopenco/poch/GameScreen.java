@@ -640,6 +640,20 @@ class GameTab extends Screen {
         s.setPadding(dp(6), dp(8), dp(6), dp(18));
         hero.addView(s);
         hero.addView(Ui.primary("Nueva partida", () -> a.push(new SetupScreen(a))), lp(MW, WC));
+        if (st.groups.isEmpty()) {
+            android.text.SpannableStringBuilder js = new android.text.SpannableStringBuilder("No estás en ningún grupo.\n");
+            int st0 = js.length();
+            js.append("¿Quieres unirte?");
+            js.setSpan(new android.text.style.ForegroundColorSpan(Theme.BLUE_TEXT), st0, js.length(), 0);
+            js.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), st0, js.length(), 0);
+            TextView join = Ui.tv(js, 14, Theme.TEXT2, Theme.REG);
+            join.setGravity(Gravity.CENTER);
+            join.setLineSpacing(dp(2), 1);
+            join.setCompoundDrawablePadding(dp(6));
+            Ui.pad(join, 8, 12, 8, 4);
+            Ui.press(join, 10, () -> a.push(new JoinScreen(a, null)));
+            hero.addView(join, lp(MW, WC));
+        }
         body.addView(hero, lp(MW, WC));
 
         List<Game> recent = st.gamesByDate();

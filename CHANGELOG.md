@@ -1,5 +1,11 @@
 # Novedades
 
+## 1.2.1
+- Pantalla principal: si no estás en ningún grupo, «¿Quieres unirte?» abre directamente la invitación.
+- Jugadores: la lista y la ficha muestran a qué grupo pertenece cada uno.
+- Estadísticas: filtro por grupo (todas las partidas, las de un grupo o las que no son de ninguno).
+- La copia de seguridad guarda también los grupos: al restaurarla en otro móvil o tras reinstalar sigues dentro del grupo, y como creador si lo eras. Trátala como la invitación: no se la pases a nadie.
+
 ## 1.2.0
 - **Grupos de juego:** partidas, jugadores y estadísticas compartidos entre los móviles del grupo (Android y iPhone). Cada grupo usa el Firebase gratuito de quien lo crea; los demás entran con la invitación, sin cuentas. [Guía](https://github.com/kolopenco/Poch-Tu-marcador-de-pocha/blob/main/docs/grupo.md).
 - Al abrir la app se bajan las novedades; al cerrar, corregir o borrar una partida, se sube.

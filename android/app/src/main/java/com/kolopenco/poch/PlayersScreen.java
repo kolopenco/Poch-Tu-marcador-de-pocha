@@ -102,7 +102,8 @@ class PlayersScreen extends Screen {
         for (Player p : ps) {
             if (!nq.isEmpty() && !norm(p.name).contains(nq)) continue;
             shown++;
-            list.addView(Ui.listRow(Ui.dot(p.color, 32), st.isMe(p.id) ? p.name + " (tú)" : p.name, gamesWins(stats.get(p.id)),
+            list.addView(Ui.listRow(Ui.dot(p.color, 32), st.isMe(p.id) ? p.name + " (tú)" : p.name,
+                    gamesWins(stats.get(p.id)) + (st.groupNames(p.id) == null ? "" : " · " + st.groupNames(p.id)),
                     () -> a.push(new PlayerDetail(a, p.id))));
         }
         if (shown == 0) {
@@ -231,6 +232,17 @@ class PlayerDetail extends Screen {
         hs.setPadding(0, dp(4), 0, 0);
         hs.setMaxLines(2);
         hc.addView(hs);
+        String gn = st.groupNames(p.id);
+        if (gn != null) {
+            LinearLayout gr = Ui.h();
+            gr.setPadding(0, dp(5), 0, 0);
+            gr.addView(Ui.icon(Ico.PEOPLE, Theme.GREEN, 15));
+            TextView gt = Ui.tv((st.groupsOf(p.id).size() > 1 ? "Pertenece a los grupos " : "Pertenece al grupo ") + gn, 13, Theme.GREEN, Theme.MED);
+            gt.setPadding(dp(6), 0, 0, 0);
+            gt.setMaxLines(2);
+            gr.addView(gt, lp(0, WC, 1));
+            hc.addView(gr);
+        }
         hero.addView(hc, lp(0, WC, 1));
         // Filtro: debajo del botón de editar, a la derecha del nombre
         boolean on = !with.isEmpty();

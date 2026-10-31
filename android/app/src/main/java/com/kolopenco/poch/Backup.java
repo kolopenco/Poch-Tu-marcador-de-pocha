@@ -26,6 +26,8 @@ final class Backup {
         List<Game> games = new ArrayList<>();
         String activeGame;
         List<String> statsSel = new ArrayList<>();
+        /** Grupos de juego con la identidad de este móvil. Null = copia antigua, sin grupos. */
+        List<Model.Group> groups;
         long exported;
         String version = "";
 
@@ -50,6 +52,11 @@ final class Backup {
         JSONArray sel = new JSONArray();
         for (String s : d.statsSel) sel.put(s);
         o.put("statsSel", sel);
+        if (d.groups != null && !d.groups.isEmpty()) {
+            JSONArray gs = new JSONArray();
+            for (Model.Group g : d.groups) gs.put(Json.group(g));
+            o.put("groups", gs);
+        }
         return o;
     }
 
@@ -74,6 +81,16 @@ final class Backup {
         d.activeGame = o.has("activeGame") ? o.optString("activeGame") : null;
         JSONArray sel = o.optJSONArray("statsSel");
         if (sel != null) for (int i = 0; i < sel.length(); i++) d.statsSel.add(sel.optString(i));
+        JSONArray gs = o.optJSONArray("groups");
+        if (gs != null) {
+            d.groups = new ArrayList<>();
+            for (int i = 0; i < gs.length(); i++) {
+                JSONObject x = gs.optJSONObject(i);
+                if (x == null) continue;
+                Model.Group g = Json.group(x);
+                if (!g.id.isEmpty() && !g.projectId.isEmpty() && !g.apiKey.isEmpty()) d.groups.add(g);
+            }
+        }
 
         // Comprobaciones de integridad
         Set<String> ids = new HashSet<>();
@@ -142,7 +159,7 @@ final class Backup {
 
     static final class MergeResult {
         Data data;
-        int newPlayers, mergedPlayers, newGames, updatedGames, sameGames, skippedActive, newProfiles;
+        int newPlayers, mergedPlayers, newGames, updatedGames, sameGames, skippedActive, newProfiles, newGroups;
     }
 
     /**
@@ -159,6 +176,8 @@ final class Backup {
         d.games.addAll(mine.games);
         d.activeGame = mine.activeGame;
         d.statsSel.addAll(mine.statsSel);
+        d.groups = new ArrayList<>();
+        if (mine.groups != null) d.groups.addAll(mine.groups);
 
         Map<String, String> ids = new LinkedHashMap<>();
         Map<String, Player> people = new LinkedHashMap<>();
@@ -206,6 +225,30 @@ final class Backup {
         for (Rules x : d.profiles) pids.add(x.id);
         for (Rules x : in.profiles) {
             if (pids.add(x.id)) { d.profiles.add(x.copy()); r.newProfiles++; }
+        }
+        // Grupos que aún no tengo: entran con la identidad de la copia, traduciendo sus jugadores a los míos
+        if (in.groups != null) {
+            Set<String> have = new HashSet<>();
+            for (Model.Group g : d.groups) have.add(g.id);
+            for (Model.Group src : in.groups) {
+                if (!have.add(src.id)) continue;
+                Model.Group g = Json.group(Json.group(src));
+                g.ids.clear();
+                for (Map.Entry<String, String> e : src.ids.entrySet()) g.ids.put(e.getKey(), id(ids, e.getValue()));
+                for (String rid : src.roster) {           // jugadores del grupo que en la copia tenían su mismo id
+                    String to = ids.get(rid);
+                    if (to != null && !to.equals(rid) && !g.ids.containsKey(rid)) g.ids.put(rid, to);
+                }
+                if (g.me != null) g.me = id(ids, g.me);
+                List<String> dirty = new ArrayList<>();
+                for (String p : src.dirtyPlayers) dirty.add(id(ids, p));
+                g.dirtyPlayers.clear();
+                g.dirtyPlayers.addAll(dirty);
+                g.lastPlayers = null;                     // se vuelve a bajar todo la próxima vez
+                g.lastGames = null;
+                d.groups.add(g);
+                r.newGroups++;
+            }
         }
         r.data = d;
         return r;

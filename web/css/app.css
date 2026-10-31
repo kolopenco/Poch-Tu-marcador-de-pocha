@@ -260,4 +260,7 @@ svg { display: block; flex-shrink: 0; }
 .hero img { width: 132px; height: 132px; border-radius: 30px; }
 .hero h2 { margin: 16px 0 0; font-size: 21px; font-weight: 700; }
 .hero p { margin: 8px 6px 18px; color: var(--text2); font-size: 14.5px; line-height: 1.5; }
+.joinlink { display: block; margin-top: 12px; padding: 8px; background: none; border: 0; color: var(--text2); font: inherit; font-size: 14px; line-height: 1.5; text-align: center; cursor: pointer; }
+.joinlink svg { vertical-align: -3px; margin-right: 6px; }
+.joinlink b { color: var(--blue-text); font-weight: 600; }
 .install { margin-top: 14px; text-align: left; }

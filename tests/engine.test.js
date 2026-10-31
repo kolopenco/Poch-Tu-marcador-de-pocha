@@ -195,5 +195,25 @@ test('mezclar copias', () => {
   assert.throws(() => E.merge(mine, inc, map));
 });
 
+test('grupos en la copia (formato Android)', () => {
+  const txt = JSON.stringify({ app: 'Poch', schema: 1, version: 'Beta 1.2.1', exported: 1, players: [{ id: 'a', name: 'Ana', color: 1, created: 0 }],
+    profiles: [], defaultProfile: '', games: [], statsSel: [],
+    groups: [{ id: 'G1', name: 'Pirolas', apiKey: 'k', projectId: 'p', key: 's', uid: 'u1', refresh: 'r1', owner: true, me: 'a',
+      ids: { remB: 'a' }, roster: ['remB', 'x'], pending: [], deleted: [], dirtyPlayers: [], lastSync: 5 }] });
+  const d = E.parseBackup(txt);
+  assert.strictEqual(d.groups.length, 1);
+  const g = d.groups[0];
+  assert.ok(g.owner && g.uid === 'u1' && g.refresh === 'r1' && g.roster.x === true && g.ids.remB === 'a');
+  const out = E.buildBackup(d, 'x', 1);
+  assert.deepStrictEqual(out.groups[0].roster, ['remB', 'x']);
+  assert.strictEqual(E.parseBackup(JSON.stringify(E.buildBackup({ players: [], profiles: [], games: [] }, 'x', 1))).groups, null);
+  const r = E.merge({ players: [{ id: 'm', name: 'Ana', color: 1 }], profiles: [], defaultProfile: '', games: [], statsSel: [], groups: [] }, d, { a: 'm' });
+  assert.strictEqual(r.newGroups, 1);
+  assert.strictEqual(r.data.groups[0].me, 'm');
+  assert.strictEqual(r.data.groups[0].ids.remB, 'm');
+  assert.strictEqual(r.data.groups[0].lastGames, null);
+  assert.strictEqual(E.merge(r.data, d, { a: 'm' }).newGroups, 0);
+});
+
 console.log(ok + ' ok, ' + bad + ' fallos');
 if (bad) process.exit(1);

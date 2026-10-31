@@ -464,7 +464,29 @@
       app: 'Poch', schema: 1, version, exported: now,
       players: d.players, profiles: d.profiles, defaultProfile: d.defaultProfile || '',
       games: d.games, activeGame: d.activeGame || null, statsSel: d.statsSel || [],
+      groups: d.groups && d.groups.length ? d.groups.map(groupOut) : undefined,
     });
+  }
+
+  // Grupos en la copia: mismo formato que Android (roster como lista)
+  function groupOut(g) {
+    return {
+      id: g.id, name: g.name, apiKey: g.apiKey, projectId: g.projectId, key: g.key, uid: g.uid, refresh: g.refresh,
+      owner: !!g.owner, me: g.me, ids: Object.assign({}, g.ids || {}),
+      roster: Array.isArray(g.roster) ? g.roster.slice() : Object.keys(g.roster || {}),
+      pending: (g.pending || []).slice(), deleted: (g.deleted || []).slice(), dirtyPlayers: (g.dirtyPlayers || []).slice(),
+      lastPlayers: g.lastPlayers, lastGames: g.lastGames, lastSync: g.lastSync || 0,
+    };
+  }
+  function groupIn(o) {
+    const roster = {};
+    for (const r of Array.isArray(o.roster) ? o.roster : Object.keys(o.roster || {})) roster[r] = true;
+    return {
+      id: o.id, name: o.name || 'Grupo', apiKey: o.apiKey, projectId: o.projectId, key: o.key, uid: o.uid || null, refresh: o.refresh || null,
+      owner: !!o.owner, me: o.me || null, ids: Object.assign({}, o.ids || {}), roster,
+      pending: (o.pending || []).slice(), deleted: (o.deleted || []).slice(), dirtyPlayers: (o.dirtyPlayers || []).slice(),
+      lastPlayers: o.lastPlayers || null, lastGames: o.lastGames || null, lastSync: o.lastSync || 0,
+    };
   }
 
   function parseBackup(text) {
@@ -480,6 +502,8 @@
       games: (o.games || []).filter((g) => g && g.id).map(normGame),
       activeGame: o.activeGame || null,
       statsSel: Array.isArray(o.statsSel) ? o.statsSel.slice() : [],
+      // null = copia antigua sin grupos (al sustituir se conservan los actuales)
+      groups: Array.isArray(o.groups) ? o.groups.filter((g) => g && g.id && g.projectId && g.apiKey).map(groupIn) : null,
     };
     const ids = new Set();
     for (const p of d.players) { if (ids.has(p.id)) throw new Error('La copia tiene jugadores repetidos.'); ids.add(p.id); }
@@ -553,10 +577,11 @@
 
   /** Mezcla la copia con mis datos (misma regla que Backup.merge de Android). */
   function merge(mine, inc, map) {
-    const r = { newPlayers: 0, mergedPlayers: 0, newGames: 0, updatedGames: 0, sameGames: 0, skippedActive: 0, newProfiles: 0 };
+    const r = { newPlayers: 0, mergedPlayers: 0, newGames: 0, updatedGames: 0, sameGames: 0, skippedActive: 0, newProfiles: 0, newGroups: 0 };
     const d = {
       players: mine.players.slice(), profiles: mine.profiles.slice(), defaultProfile: mine.defaultProfile,
       games: mine.games.slice(), activeGame: mine.activeGame, statsSel: (mine.statsSel || []).slice(),
+      groups: (mine.groups || []).slice(),
     };
     const people = {};
     for (const p of d.players) people[p.id] = p;
@@ -583,6 +608,22 @@
     }
     const pids = new Set(d.profiles.map((x) => x.id));
     for (const x of inc.profiles) if (!pids.has(x.id)) { pids.add(x.id); d.profiles.push(copy(x)); r.newProfiles++; }
+    // Grupos que aún no tengo: entran con la identidad de la copia, con sus jugadores traducidos a los míos
+    const have = new Set(d.groups.map((g) => g.id));
+    const to = (p) => ids[p] || p;
+    for (const src of inc.groups || []) {
+      if (have.has(src.id)) continue;
+      have.add(src.id);
+      const g = groupIn(groupOut(src));
+      g.ids = {};
+      for (const k in src.ids || {}) g.ids[k] = to(src.ids[k]);
+      for (const rid of Object.keys(g.roster)) if (ids[rid] && ids[rid] !== rid && !g.ids[rid]) g.ids[rid] = ids[rid];
+      if (g.me) g.me = to(g.me);
+      g.dirtyPlayers = g.dirtyPlayers.map(to);
+      g.lastPlayers = null; g.lastGames = null;
+      d.groups.push(g);
+      r.newGroups++;
+    }
     r.data = d;
     return r;
   }

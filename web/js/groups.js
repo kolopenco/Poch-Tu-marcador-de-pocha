@@ -198,8 +198,8 @@
       S.busy = true; P.refresh();
       try {
         const r = await P.joinApply(S.fetched.g, S.map, w.id, w.newName);
-        P.popToRoot(4);
-        P.openIn(4, P.Groups());
+        P.popToRoot(P.tab());
+        if (P.tab() === 4) P.push(P.Groups()); else P.refresh();
         P.info('¡Ya estás en «' + S.fetched.g.name + '»!', 'Se han descargado ' + P.plural(r.newGames, 'partida', 'partidas') + '. A partir de ahora, al abrir la app se bajan las novedades y cada partida se sube al cerrarla.\n\nAl crear una partida, elige el grupo para que se comparta.');
       } catch (e) { S.busy = false; P.refresh(); P.info('No se pudo unir', P.syncError(e)); }
     }

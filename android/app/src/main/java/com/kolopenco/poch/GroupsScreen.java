@@ -495,8 +495,9 @@ class JoinScreen extends Screen {
         Sync.run(a, () -> Cloud.joinApply(Sync.host(a), g, map, mr, mn), r -> {
             busy = false;
             st.saveLastGroup(g.id);
-            a.popToRoot(4);
-            a.openIn(4, new GroupsScreen(a));
+            a.popToRoot(a.tab);
+            if (a.tab == 4) a.push(new GroupsScreen(a));
+            else a.refresh();
             a.info("¡Ya estás en «" + g.name + "»!", "Se han descargado " + Ui.plural(r.newGames, "partida", "partidas")
                     + ". A partir de ahora, al abrir la app se bajan las novedades y cada partida se sube al cerrarla.\n\nAl crear una partida, elige el grupo para que se comparta.");
         }, err -> {

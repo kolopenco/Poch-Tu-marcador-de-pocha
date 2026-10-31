@@ -31,6 +31,9 @@ class StatsScreen extends Screen {
     int sortKey = -1;      // índice de columna; −1 = la primera de la sección
     /** 0 = todos, 1 = seleccionados, 2 = comparativa (solo partidas en las que jugaron juntos). */
     int mode;
+    /** Grupo por el que se filtran las partidas (null = todas; NO_GROUP = las que no son de ningún grupo). */
+    static String groupFilter;
+    static final String NO_GROUP = "__none";
 
     StatsScreen(MainActivity a) {
         super(a);
@@ -86,9 +89,33 @@ class StatsScreen extends Screen {
     private List<Player> chosen() {
         List<Player> out = new ArrayList<>();
         List<String> src = mode == 1 ? st.statsSel : mode == 2 ? st.statsCmp : null;
+        java.util.Set<String> inPool = poolPlayers();
         for (Player p : st.playersSorted()) {
             if (src != null && !src.contains(p.id)) continue;
+            if (inPool != null && !inPool.contains(p.id)) continue;
             out.add(p);
+        }
+        return out;
+    }
+
+    /** Con filtro de grupo: jugadores de sus partidas y miembros del grupo. Null = sin filtro. */
+    private java.util.Set<String> poolPlayers() {
+        if (groupFilter == null) return null;
+        java.util.Set<String> in = new java.util.HashSet<>();
+        for (Game g : pool()) in.addAll(g.order);
+        Model.Group gr = st.group(groupFilter);
+        if (gr != null) for (Player p : st.players) if (st.groupsOf(p.id).contains(gr)) in.add(p.id);
+        return in;
+    }
+
+    /** Partidas cerradas, filtradas por grupo. */
+    private List<Game> pool() {
+        if (groupFilter != null && !NO_GROUP.equals(groupFilter) && st.group(groupFilter) == null) groupFilter = null;
+        List<Game> out = new ArrayList<>();
+        for (Game g : st.closedGames()) {
+            if (groupFilter == null
+                    || (NO_GROUP.equals(groupFilter) ? g.group == null || st.group(g.group) == null : groupFilter.equals(g.group)))
+                out.add(g);
         }
         return out;
     }
@@ -105,10 +132,30 @@ class StatsScreen extends Screen {
             a.refresh();
         }), lpm(MW, WC, 0, 0, 0, 12));
 
+        // Filtro de grupo
+        if (!st.groups.isEmpty()) {
+            pool();
+            body.addView(Ui.one("Filtrar por grupo", 14, Theme.TEXT2, Theme.MED), lpm(MW, WC, 2, 0, 0, 8));
+            LinearLayout gr = Ui.h();
+            gr.addView(Ui.chip("Todas las partidas", groupFilter == null, () -> { groupFilter = null; a.refresh(); }));
+            for (Model.Group g : st.groups) {
+                gr.addView(Ui.hspace(8));
+                gr.addView(Ui.chip(g.name, g.id.equals(groupFilter), () -> { groupFilter = g.id; a.refresh(); }));
+            }
+            gr.addView(Ui.hspace(8));
+            gr.addView(Ui.chip("Sin grupo", NO_GROUP.equals(groupFilter), () -> { groupFilter = NO_GROUP; a.refresh(); }));
+            android.widget.HorizontalScrollView gs = new android.widget.HorizontalScrollView(a);
+            gs.setHorizontalScrollBarEnabled(false);
+            gs.addView(gr);
+            body.addView(gs, lpm(MW, WC, 0, 0, 0, 14));
+        }
+
         // Filtro de jugadores
         body.addView(Ui.one("Filtrar jugadores", 14, Theme.TEXT2, Theme.MED), lpm(MW, WC, 2, 0, 0, 8));
         LinearLayout fr = Ui.h();
-        int all = st.players.size();
+        java.util.Set<String> pp = poolPlayers();
+        int all = 0;
+        for (Player p : st.players) if (pp == null || pp.contains(p.id)) all++;
         fr.addView(Ui.chip("Todos (" + all + ")", mode == 0, () -> {
             mode = 0;
             a.refresh();
@@ -139,7 +186,13 @@ class StatsScreen extends Screen {
         List<Player> ps = chosen();
         List<String> ids = new ArrayList<>();
         for (Player p : ps) ids.add(p.id);
-        List<Game> pool = st.closedGames();
+        List<Game> pool = pool();
+        if (groupFilter != null) {
+            Model.Group fg = st.group(groupFilter);
+            TextView gnote = Ui.tv(Ui.plural(pool.size(), "partida", "partidas") + (fg != null ? " del grupo «" + fg.name + "»" : " sin grupo"), 13, Theme.BLUE_TEXT, Theme.MED);
+            gnote.setPadding(dp(2), 0, 0, dp(8));
+            body.addView(gnote);
+        }
         if (mode == 2) {
             pool = Engine.withAll(pool, ids);
             body.addView(togetherNote(ps, pool.size()), lpm(MW, WC, 0, 0, 0, 4));

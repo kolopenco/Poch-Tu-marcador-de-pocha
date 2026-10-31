@@ -249,7 +249,7 @@
           if (nq && E.norm(p.name).indexOf(nq) < 0) continue;
           n++;
           const isMe = (st.groups || []).some((g) => g.me === p.id);
-          list.appendChild(P.lrow(P.dot(p.color, 32), p.name + (isMe ? ' (tú)' : ''), winsText(stats[p.id]), () => P.push(PlayerDetail(p.id))));
+          list.appendChild(P.lrow(P.dot(p.color, 32), p.name + (isMe ? ' (tú)' : ''), winsText(stats[p.id]) + (P.groupNames(p.id) ? ' · ' + P.groupNames(p.id) : ''), () => P.push(PlayerDetail(p.id))));
         }
         if (!n) list.appendChild(h('div', { class: 'empty' }, st.players.length ? 'Ningún jugador coincide con la búsqueda.' : 'Aún no hay jugadores. Pulsa + para añadir el primero.'));
       };
@@ -310,7 +310,9 @@
       const on = S.with.length > 0;
       body.appendChild(h('div', { class: 'row', style: { gap: '14px', margin: '4px 0 14px 2px' } }, P.dot(p.color, 50),
         h('div', { class: 'grow' }, h('div', { class: 'ell', style: { fontSize: '22px', fontWeight: '700' } }, p.name),
-          h('div', { style: { fontSize: '13.5px', marginTop: '4px', color: on ? 'var(--blue-text)' : 'var(--text2)', fontWeight: on ? '500' : '400' } }, on ? 'Jugando con ' + P.joinNames(withNames) : 'Estadísticas generales')),
+          h('div', { style: { fontSize: '13.5px', marginTop: '4px', color: on ? 'var(--blue-text)' : 'var(--text2)', fontWeight: on ? '500' : '400' } }, on ? 'Jugando con ' + P.joinNames(withNames) : 'Estadísticas generales'),
+          P.groupNames(pid) ? h('div', { class: 'row', style: { gap: '6px', marginTop: '5px', color: 'var(--green)', fontSize: '13px', fontWeight: '500' } }, P.icon('people', 'var(--green)', 15),
+            (P.groupsOf(pid).length > 1 ? 'Pertenece a los grupos ' : 'Pertenece al grupo ') + P.groupNames(pid)) : null),
         P.chip(on ? 'Con ' + S.with.length : 'Filtrar', on, () => P.multiPick('Jugando con…', 'Cuentan solo las partidas de ' + p.name + ' en las que también jugaron todos los que elijas.',
           P.sorted().filter((o) => o.id !== pid), S.with, 'Aplicar filtro', (ids) => { S.with = ids; S.scrollY = 0; P.refresh(); return true; }), 'filter')));
       if (on) body.appendChild(h('div', { class: 'banner', style: { marginBottom: '14px', paddingRight: '4px' } }, P.icon('people', 'var(--blue-text)', 19),
@@ -368,6 +370,7 @@
 
   // ------------------------------------------------------------------ estadísticas
 
+  const NOG = '__none';
   P.Stats = function () {
     const S = { section: 0, sort: -1, mode: st.statsSel.length ? 1 : 0 };
     const D = E.derived;
@@ -387,16 +390,35 @@
       root.appendChild(P.header(P.icon('chart', '#fff', 26), 'Estadísticas'));
       const body = h('div', { class: 'body', style: { paddingTop: '0' } });
       body.appendChild(h('div', { style: { marginBottom: '12px' } }, P.seg(['General', 'Rondas', 'Subastadas'], S.section, (i) => { S.section = i; S.sort = -1; P.refresh(); })));
+      const groups = st.groups || [];
+      if (P.statsGroup && P.statsGroup !== NOG && !P.groupById(P.statsGroup)) P.statsGroup = null;
+      if (groups.length) {
+        body.appendChild(h('div', { class: 'text2', style: { fontSize: '14px', fontWeight: '500', margin: '0 2px 8px' } }, 'Filtrar por grupo'));
+        body.appendChild(h('div', { class: 'chips', style: { marginBottom: '14px' } },
+          P.chip('Todas las partidas', !P.statsGroup, () => { P.statsGroup = null; P.refresh(); }),
+          groups.map((g) => P.chip(g.name, P.statsGroup === g.id, () => { P.statsGroup = g.id; P.refresh(); })),
+          P.chip('Sin grupo', P.statsGroup === NOG, () => { P.statsGroup = NOG; P.refresh(); })));
+      }
+      const fg = P.statsGroup;
+      let pool = P.closedGames().filter((g) => !fg || (fg === NOG ? !g.group || !P.groupById(g.group) : g.group === fg));
+      let inPool = null;
+      if (fg) {
+        inPool = new Set();
+        for (const g of pool) for (const id of g.order) inPool.add(id);
+        const gr = P.groupById(fg);
+        if (gr) for (const p of st.players) if (P.groupsOf(p.id).indexOf(gr) >= 0) inPool.add(p.id);
+      }
       body.appendChild(h('div', { class: 'text2', style: { fontSize: '14px', fontWeight: '500', margin: '0 2px 8px' } }, 'Filtrar jugadores'));
       const nsel = known(st.statsSel), ncmp = known(st.statsCmp);
       body.appendChild(h('div', { class: 'chips', style: { marginBottom: '14px' } },
-        P.chip('Todos (' + st.players.length + ')', S.mode === 0, () => { S.mode = 0; P.refresh(); }),
+        P.chip('Todos (' + st.players.filter((p) => !inPool || inPool.has(p.id)).length + ')', S.mode === 0, () => { S.mode = 0; P.refresh(); }),
         P.chip(nsel ? nsel + (nsel === 1 ? ' seleccionado' : ' seleccionados') : 'Seleccionar', S.mode === 1, () => pick(false)),
         P.chip('Comparativa' + (S.mode === 2 ? ' (' + ncmp + ')' : ''), S.mode === 2, () => pick(true), 'people')));
       const src = S.mode === 1 ? st.statsSel : S.mode === 2 ? st.statsCmp : null;
-      const ps = P.sorted().filter((p) => !src || src.indexOf(p.id) >= 0);
+      const ps = P.sorted().filter((p) => (!src || src.indexOf(p.id) >= 0) && (!inPool || inPool.has(p.id)));
       const ids = ps.map((p) => p.id);
-      let pool = P.closedGames();
+      if (fg) body.appendChild(h('div', { style: { fontSize: '13px', fontWeight: '500', color: 'var(--blue-text)', margin: '0 2px 8px' } },
+        P.plural(pool.length, 'partida', 'partidas') + (P.groupById(fg) ? ' del grupo «' + P.groupById(fg).name + '»' : ' sin grupo')));
       if (S.mode === 2) {
         pool = E.withAll(pool, ids);
         const names = P.joinNames(ps.map((p) => p.name));
@@ -636,7 +658,8 @@
         P.kv('Partidas en estadísticas', String(P.closedGames().length)), P.kv('Perfiles de reglas', String(st.profiles.length)),
         P.kv('Última copia', st.lastBackup ? P.dateTime(st.lastBackup) : 'Nunca')));
       body.appendChild(h('div', { class: 'note', style: { margin: '2px 2px 14px', fontSize: '13px' } },
-        'La copia es un archivo con jugadores, partidas, reglas y estadísticas. Es compatible con la app de Android: podéis pasaros partidas y sumar estadísticas importándola con «Mezclar».'));
+        'La copia es un archivo con jugadores, partidas, reglas y estadísticas. Es compatible con la app de Android: podéis pasaros partidas y sumar estadísticas importándola con «Mezclar».'
+        + ((st.groups || []).length ? ' También guarda tus grupos de juego: al restaurarla en otro móvil sigues dentro (y como creador, si lo eres). Por eso no se la pases a nadie: para compartir partidas, que se unan al grupo.' : '')));
       body.appendChild(P.primary('Exportar copia', exportBackup));
       body.appendChild(h('div', { style: { height: '10px' } }));
       const file = h('input', { type: 'file', accept: '.json,application/json,text/plain', style: { display: 'none' } });
@@ -685,8 +708,9 @@
     }
     function apply(d, title) {
       const ok = P.replaceAll(d, true);
+      P.syncQuiet(false);
       P.popToRoot(0); P.refresh();
-      P.info(ok ? title : 'Revisa los datos', ok ? 'Restauración verificada: ' + P.plural(st.players.length, 'jugador', 'jugadores') + ', ' + P.plural(st.games.length, 'partida', 'partidas') + ' y ' + P.plural(st.profiles.length, 'perfil', 'perfiles') + '. Todo coincide con la copia.'
+      P.info(ok ? title : 'Revisa los datos', ok ? 'Restauración verificada: ' + P.plural(st.players.length, 'jugador', 'jugadores') + ', ' + P.plural(st.games.length, 'partida', 'partidas') + ' y ' + P.plural(st.profiles.length, 'perfil', 'perfiles') + ((st.groups || []).length ? ' y ' + P.plural(st.groups.length, 'grupo de juego', 'grupos de juego') + ', que se sincronizan ahora' : '') + '. Todo coincide con la copia.'
         : 'Los datos se han restaurado, pero la comprobación final no coincide del todo. Si ves algo raro, usa «Recuperar datos anteriores».');
     }
     function restorePrev() {
@@ -741,6 +765,7 @@
       let r;
       try { r = E.merge(P.snapshot(), inc, S.map); } catch (e) { P.info('No se pudo mezclar', e.message); return; }
       const ok = P.replaceAll(r.data, true);
+      P.syncQuiet(false);
       P.popToRoot(P.tab()); P.refresh();
       let m = '• ' + P.plural(r.newGames, 'partida nueva', 'partidas nuevas');
       if (r.updatedGames) m += '\n• ' + P.plural(r.updatedGames, 'partida actualizada', 'partidas actualizadas');
@@ -748,6 +773,7 @@
       if (r.skippedActive) m += '\n• ' + P.plural(r.skippedActive, 'partida en curso no importada', 'partidas en curso no importadas');
       m += '\n• ' + P.plural(r.newPlayers, 'jugador nuevo', 'jugadores nuevos') + ', ' + r.mergedPlayers + ' unidos con los tuyos';
       if (r.newProfiles) m += '\n• ' + P.plural(r.newProfiles, 'perfil de reglas nuevo', 'perfiles de reglas nuevos');
+      if (r.newGroups) m += '\n• ' + P.plural(r.newGroups, 'grupo de juego', 'grupos de juego');
       m += ok ? '\n\nSi algo no te convence, en Copias de seguridad puedes «Recuperar datos anteriores».' : '\n\nLa comprobación final no coincide del todo. Si ves algo raro, usa «Recuperar datos anteriores».';
       P.info('Copia mezclada', m);
     }

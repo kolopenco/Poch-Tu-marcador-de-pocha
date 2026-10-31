@@ -113,4 +113,35 @@ public class BackupTest {
         try { Backup.merge(mine, in, map); } catch (Exception e) { failed = true; }
         assertTrue(failed);
     }
+
+    @Test public void gruposEnLaCopia() throws Exception {
+        Backup.Data d = new Backup.Data();
+        d.players.add(pl("a", "Ana"));
+        Model.Group g = new Model.Group();
+        g.id = "G1"; g.name = "Pirolas"; g.apiKey = "k"; g.projectId = "p"; g.key = "s";
+        g.uid = "u1"; g.refresh = "r1"; g.owner = true; g.me = "a";
+        g.ids.put("remB", "a"); g.roster.add("remB"); g.roster.add("x");
+        d.groups = new java.util.ArrayList<>();
+        d.groups.add(g);
+        Backup.Data back = Backup.parse(Backup.build(d, "t", 1).toString());
+        assertEquals(1, back.groups.size());
+        Model.Group b = back.groups.get(0);
+        assertTrue(b.owner && "u1".equals(b.uid) && "r1".equals(b.refresh) && "a".equals(b.me) && "a".equals(b.ids.get("remB")));
+        // Copia antigua: sin grupos (null), para no borrar los que ya hay al sustituir
+        Backup.Data old = new Backup.Data();
+        assertTrue(Backup.parse(Backup.build(old, "t", 1).toString()).groups == null);
+        // Mezclar: el jugador «a» de la copia se une con mi «m»; el grupo entra traducido
+        Backup.Data mine = new Backup.Data();
+        mine.players.add(pl("m", "Ana"));
+        java.util.Map<String, String> map = new java.util.HashMap<>();
+        map.put("a", "m");
+        Backup.MergeResult r = Backup.merge(mine, back, map);
+        assertEquals(1, r.newGroups);
+        Model.Group mg = r.data.groups.get(0);
+        assertEquals("m", mg.me);
+        assertEquals("m", mg.ids.get("remB"));
+        assertTrue(mg.lastGames == null && mg.owner);
+        // Si ya tengo el grupo, no se duplica
+        assertEquals(0, Backup.merge(r.data, back, map).newGroups);
+    }
 }

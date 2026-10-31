@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const P = window.P, E = window.Engine, h = P.h, st = P.st;
-  P.VERSION = '1.2.0';
+  P.VERSION = '1.2.1';
 
   const TABS = [['Partida', 'trophy'], ['Historial', 'list'], ['Jugadores', 'people'], ['Estadísticas', 'chart'], ['Ajustes', 'gear']];
   let tab = 0, shown = null;

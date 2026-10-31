@@ -455,7 +455,9 @@
       body.appendChild(h('div', { class: 'hero' }, h('img', { src: 'icons/poch-256.png', alt: 'Poch!' }),
         h('h2', null, 'Marcador de La Pocha'),
         h('p', null, 'Apunta cada ronda con pocos toques: la app calcula los puntos, los repartos y las subastas.'),
-        P.primary('Nueva partida', () => P.push(Setup()))));
+        P.primary('Nueva partida', () => P.push(Setup())),
+        (st.groups || []).length ? null : h('button', { class: 'joinlink', onclick: () => P.push(P.JoinScreen('')) },
+          'No estás en ningún grupo.', h('br'), h('b', null, '¿Quieres unirte?'))));
       const recent = P.byDate();
       if (recent.length) {
         body.appendChild(P.section('Últimas partidas'));

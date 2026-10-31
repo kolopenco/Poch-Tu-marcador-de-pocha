@@ -160,6 +160,12 @@
   // ------------------------------------------------------------------ crear, unirse, salir
 
   P.groupById = (id) => (st.groups || []).find((g) => g.id === id);
+  /** Grupos a los que pertenece un jugador de este móvil. */
+  P.groupsOf = (pid) => (st.groups || []).filter((g) => g.me === pid || (g.roster && g.roster[remoteId(g, pid)]));
+  P.groupNames = (pid) => {
+    const n = P.groupsOf(pid).map((g) => g.name);
+    return n.length ? (n.length > 1 ? n.slice(0, -1).join(', ') + ' y ' + n[n.length - 1] : n[0]) : null;
+  };
 
   /** Crea un grupo nuevo en el Firebase indicado. me = id local de «quién eres tú». */
   P.createGroup = async (cfg, name, me) => {

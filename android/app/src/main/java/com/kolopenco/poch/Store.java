@@ -269,6 +269,26 @@ final class Store {
         return null;
     }
 
+    /** Grupos a los que pertenece el jugador. */
+    List<Model.Group> groupsOf(String pid) {
+        List<Model.Group> out = new ArrayList<>();
+        for (Model.Group g : groups)
+            if (pid.equals(g.me) || g.roster.contains(Cloud.remoteId(g, pid))) out.add(g);
+        return out;
+    }
+
+    /** «Pirolas» o «Pirolas y Viernes». Null si no está en ninguno. */
+    String groupNames(String pid) {
+        List<Model.Group> gs = groupsOf(pid);
+        if (gs.isEmpty()) return null;
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < gs.size(); i++) {
+            if (i > 0) b.append(i == gs.size() - 1 ? " y " : ", ");
+            b.append(gs.get(i).name);
+        }
+        return b.toString();
+    }
+
     /** ¿Es este jugador «tú» en algún grupo? */
     boolean isMe(String pid) {
         for (Model.Group g : groups) if (pid.equals(g.me)) return true;
@@ -311,6 +331,7 @@ final class Store {
         d.games.addAll(games.values());
         d.activeGame = activeId;
         d.statsSel.addAll(statsSel);
+        d.groups = new ArrayList<>(groups);
         return d;
     }
 
@@ -350,8 +371,15 @@ final class Store {
         JSONArray sel = new JSONArray();
         for (String s : d.statsSel) sel.put(s);
         e.putString("stats_sel", sel.toString());
+        if (d.groups != null) {
+            // Copia con grupos: se restauran tal cual (identidad incluida). Copia antigua: se conservan los actuales.
+            JSONArray gs = new JSONArray();
+            for (Model.Group g : d.groups) gs.put(Json.group(g));
+            e.putString("groups", gs.toString());
+        }
         boolean ok = e.commit();
         load();
+        if (d.groups == null) d.groups = new ArrayList<>(groups);
         // Verificación: lo leído debe coincidir exactamente con la copia
         String want = Backup.build(d, "", 0).toString();
         String got = Backup.build(snapshot(), "", 0).toString();

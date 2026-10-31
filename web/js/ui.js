@@ -291,16 +291,18 @@
   P.defaultRules = () => st.profiles.find((r) => r.id === st.defaultProfile) || st.profiles[0];
   P.nextColor = () => P.PLAYER_COLORS.find((c) => !st.players.some((p) => p.color === c)) ?? P.PLAYER_COLORS[st.players.length % 12];
   P.nameTaken = (name, except) => st.players.some((p) => p.id !== except && Engine.norm(p.name) === Engine.norm(name));
-  P.snapshot = () => ({ players: st.players, profiles: st.profiles, defaultProfile: st.defaultProfile, games: st.games, activeGame: st.activeGame, statsSel: st.statsSel });
+  P.snapshot = () => ({ players: st.players, profiles: st.profiles, defaultProfile: st.defaultProfile, games: st.games, activeGame: st.activeGame, statsSel: st.statsSel, groups: st.groups || [] });
   P.replaceAll = (d, keepPrev) => {
     if (keepPrev) { st.prevData = Engine.buildBackup(P.snapshot(), P.VERSION, Date.now()); st.prevTime = Date.now(); }
     st.players = d.players; st.profiles = d.profiles; st.defaultProfile = d.defaultProfile;
     st.games = d.games; st.activeGame = d.activeGame || null; st.statsSel = d.statsSel || [];
     st.statsCmp = st.statsCmp.filter((id) => P.player(id));
+    if (d.groups) st.groups = d.groups;      // copia antigua (sin grupos): se conservan los actuales
+    else d.groups = st.groups || [];
     P.save();
     // Verificación: lo guardado coincide con lo que se quería guardar
     const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
-    return JSON.stringify(Engine.buildBackup({ players: saved.players, profiles: saved.profiles, defaultProfile: saved.defaultProfile, games: saved.games, activeGame: saved.activeGame, statsSel: saved.statsSel }, '', 0))
+    return JSON.stringify(Engine.buildBackup({ players: saved.players, profiles: saved.profiles, defaultProfile: saved.defaultProfile, games: saved.games, activeGame: saved.activeGame, statsSel: saved.statsSel, groups: saved.groups }, '', 0))
       === JSON.stringify(Engine.buildBackup(d, '', 0));
   };
   P.saveGame = () => P.save();

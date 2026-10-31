@@ -19,7 +19,7 @@ Un **grupo de juego** comparte jugadores, partidas y estadísticas entre vuestro
 
 ## 2. Activar el acceso anónimo
 
-1. En el menú de la izquierda: **Compilación › Authentication** (o «Seguridad › Authentication») y pulsa **Comenzar**.
+1. En el menú de la izquierda: **Seguridad › Authentication** (en versiones anteriores, «Compilación › Authentication»; el icono es una silueta de personas) y pulsa **Comenzar**.
 2. En la pestaña **Método de acceso** (Sign-in method), elige **Anónimo**.
 3. Actívalo y pulsa **Guardar**.
 
@@ -35,7 +35,7 @@ Un **grupo de juego** comparte jugadores, partidas y estadísticas entre vuestro
 Las reglas hacen que solo entre quien tenga vuestra invitación.
 
 1. En Firestore Database, abre la pestaña **Reglas**.
-2. Borra todo lo que haya y pega el contenido de **[firestore.rules](firestore.rules)** (ábrelo, pulsa el botón de copiar y pégalo).
+2. Borra todo lo que haya y pega las reglas. Están en el archivo **[firestore.rules](firestore.rules)** de esta misma carpeta: ábrelo, pulsa el botón de copiar (arriba a la derecha del código) y pégalo.
 3. Pulsa **Publicar**.
 
 ## 5. Copiar la configuración
@@ -81,6 +81,15 @@ Al unirse, cada uno dice **quién es** y, si ya tenía jugadores en su móvil, p
 - La partida **en curso no se comparte**: solo se sube cuando se cierra.
 - Al empezar una partida se elige el **grupo** con el que se compartirá (o «Sin grupo»).
 - Un móvil puede estar en **varios grupos**.
+
+## Cambiar de móvil o reinstalar
+
+El grupo recuerda a tu móvil por una identidad guardada en la app. Si borras la app sin más, la pierdes (y con ella el papel de creador).
+
+- Haz de vez en cuando **Ajustes › Copias de seguridad › Exportar copia**: incluye tus grupos.
+- En el móvil nuevo, **Importar copia** y vuelves a estar dentro, como el mismo móvil (y como creador, si lo eras).
+- Esa copia funciona como una llave del grupo: guárdala para ti y no se la pases a nadie.
+- Para actualizar Poch!, instala la nueva versión **encima**, sin desinstalar.
 
 ## Seguridad
 
