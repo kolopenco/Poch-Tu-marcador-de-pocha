@@ -61,7 +61,8 @@ const firebaseConfig = {
 1. En Poch!: **Ajustes › Grupos de juego › Crear un grupo nuevo**.
 2. Pulsa **Pegar** (o pega a mano) el bloque del paso 5.
 3. Ponle nombre al grupo, di **quién eres tú** y pulsa **Crear grupo**.
-4. Pulsa **Compartir** y manda la invitación a tus amigos por WhatsApp o correo.
+4. En el grupo, pulsa **Añadir jugadores al grupo** y elige a todos los de la pandilla, **también los que no vayan a instalarse la app**: así aparecen en todos los móviles y, al unirse, cada uno se elige en la lista.
+5. Pulsa **Invitar amigos › Compartir** y manda la invitación por WhatsApp o correo.
 
 ¡Listo! Desde **Grupos de juego** puedes volver a invitar, ver qué móviles están dentro, cambiar el nombre o crear una invitación nueva.
 

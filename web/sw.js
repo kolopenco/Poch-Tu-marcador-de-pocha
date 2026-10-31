@@ -1,5 +1,5 @@
 /* Poch! · funciona sin Internet: guarda la app en el móvil la primera vez que se abre. */
-const CACHE = 'poch-1.2.1';
+const CACHE = 'poch-1.2.2';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/engine.js', 'js/ui.js', 'js/game.js', 'js/screens.js', 'js/sync.js', 'js/groups.js', 'js/main.js',

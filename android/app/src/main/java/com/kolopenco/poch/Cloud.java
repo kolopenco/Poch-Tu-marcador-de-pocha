@@ -370,6 +370,8 @@ final class Cloud {
         Group group;
         final List<Player> players = new ArrayList<>();
         final List<Game> games = new ArrayList<>();
+        /** Jugador del grupo → cuántos otros móviles lo tienen como «yo». */
+        final Map<String, Integer> claimed = new HashMap<>();
     }
 
     /** Primer paso de unirse: entra con la clave y descarga jugadores y partidas (sin aplicarlos aún). */
@@ -395,6 +397,13 @@ final class Cloud {
             if ("true".equals(f.get("deleted")) || f.get("json") == null || f.get("json").isEmpty()) continue;
             try { d.games.add(Json.game(new JSONObject(f.get("json")))); } catch (Exception ignored) { }
         }
+        try {
+            for (Member m : members(h, g)) {
+                if (m.uid.equals(g.uid) || m.player == null || m.player.isEmpty()) continue;
+                Integer c = d.claimed.get(m.player);
+                d.claimed.put(m.player, c == null ? 1 : c + 1);
+            }
+        } catch (CloudException ignored) { }
         d.group = g;
         return d;
     }
@@ -418,8 +427,39 @@ final class Cloud {
             h.groups().add(g);
             h.save();
         });
-        try { writeMember(h, g); } catch (CloudException ignored) { }
-        return syncGroup(h, g);
+        // Primero, «tú» en el grupo (para que otro móvil tuyo te encuentre en la lista); luego lo demás
+        try {
+            final List<String> mine = new ArrayList<>();
+            final JSONArray w = new JSONArray();
+            h.main(() -> {
+                try {
+                    if (g.me == null || !g.dirtyPlayers.contains(g.me)) return;
+                    Player p = player(h, g.me);
+                    if (p == null) return;
+                    String rid = remoteId(g, p.id);
+                    Player out = new Player();
+                    out.id = rid; out.name = p.name; out.color = p.color; out.created = p.created; out.updated = p.updated;
+                    w.put(upd(docPath(g, "players/" + rid), new JSONObject().put("json", strF(Json.player(out).toString()))));
+                    mine.add(p.id);
+                } catch (Exception e) { throw new RuntimeException(e); }
+            });
+            if (w.length() > 0) {
+                commit(h, g, w);
+                h.main(() -> { g.dirtyPlayers.removeAll(mine); g.roster.add(remoteId(g, g.me)); h.save(); });
+            }
+            writeMember(h, g);
+        } catch (CloudException e) {
+            SyncResult r = new SyncResult();
+            r.error = explain(e);
+            return r;
+        }
+        try {
+            return syncGroup(h, g);
+        } catch (Exception e) {
+            SyncResult r = new SyncResult();
+            r.error = explain(e);
+            return r;
+        }
     }
 
     static void leave(Host h, Group g) throws Exception {
@@ -511,6 +551,8 @@ final class Cloud {
 
     static final class SyncResult {
         int newGames, updatedGames, players, uploaded;
+        /** Solo en joinApply: ya estás dentro, pero algo no se pudo sincronizar (se reintenta luego). */
+        String error;
     }
 
     /** Sincroniza un grupo: baja jugadores y partidas nuevos, y sube lo pendiente. */

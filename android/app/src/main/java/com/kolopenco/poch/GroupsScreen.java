@@ -186,8 +186,8 @@ class GroupsScreen extends Screen {
         String sel;
         String name = "";
 
-        void build(MainActivity a, LinearLayout box, List<Player> list, String newSub) {
-            for (Player p : list) box.addView(SetupScreen.option(p.name, null, p.id.equals(sel), () -> { sel = p.id; a.refresh(); }));
+        void build(MainActivity a, LinearLayout box, List<Player> list, String newSub, java.util.function.Function<Player, String> sub) {
+            for (Player p : list) box.addView(SetupScreen.option(p.name, sub == null ? null : sub.apply(p), p.id.equals(sel), () -> { sel = p.id; a.refresh(); }));
             box.addView(SetupScreen.option("Soy nuevo", newSub, NEW.equals(sel), () -> { sel = NEW; a.refresh(); }));
             if (NEW.equals(sel)) {
                 EditText e = field("Tu nombre", name, false, s -> name = s);
@@ -245,7 +245,7 @@ class CreateGroupScreen extends Screen {
 
         body.addView(Ui.section("¿Quién eres tú?"));
         LinearLayout wb = Ui.v();
-        who.build(a, wb, st.playersSorted(), "Crea tu jugador");
+        who.build(a, wb, st.playersSorted(), "Crea tu jugador", null);
         body.addView(wb);
 
         ScrollView sv = a.screenScroll(body);
@@ -363,7 +363,11 @@ class JoinScreen extends Screen {
             List<Player> gp = new ArrayList<>(fetched.players);
             Collections.sort(gp, (x, y) -> x.name.compareToIgnoreCase(y.name));
             LinearLayout wb = Ui.v();
-            who.build(a, wb, gp, "No estoy en la lista");
+            who.build(a, wb, gp, "No estoy en la lista", p -> {
+                Integer n = fetched.claimed.get(p.id);
+                return n == null ? null : n == 1 ? "Ya lo usa otro móvil (puedes ser tú en otro dispositivo)" : "Ya lo usan " + n + " móviles";
+            });
+            body.addView(GroupsScreen.note("Si ya entraste desde otro móvil, elígete en la lista: no te crees de nuevo."));
             body.addView(wb);
 
             if (!st.players.isEmpty() && !fetched.players.isEmpty()) {
@@ -498,6 +502,11 @@ class JoinScreen extends Screen {
             a.popToRoot(a.tab);
             if (a.tab == 4) a.push(new GroupsScreen(a));
             else a.refresh();
+            if (r.error != null) {
+                a.info("Ya estás en «" + g.name + "»", "Pero no se ha podido terminar de sincronizar: " + r.error
+                        + "\n\nSe volverá a intentar al abrir la app. Si sigue fallando, avisa a quien creó el grupo.");
+                return;
+            }
             a.info("¡Ya estás en «" + g.name + "»!", "Se han descargado " + Ui.plural(r.newGames, "partida", "partidas")
                     + ". A partir de ahora, al abrir la app se bajan las novedades y cada partida se sube al cerrarla.\n\nAl crear una partida, elige el grupo para que se comparta.");
         }, err -> {
@@ -544,9 +553,11 @@ class GroupDetail extends Screen {
         c.addView(Ui.kv("Partidas del grupo", String.valueOf(games)));
         c.addView(Ui.divider());
         c.addView(Ui.kv("Última sincronización", g.lastSync == 0 ? "Nunca" : Ui.dateTime(g.lastSync)));
-        if (!g.pending.isEmpty() || !g.deleted.isEmpty()) {
+        c.addView(Ui.divider());
+        c.addView(Ui.kv("Papel", g.owner ? "Creador del grupo" : "Miembro"));
+        if (!g.pending.isEmpty() || !g.deleted.isEmpty() || !g.dirtyPlayers.isEmpty()) {
             c.addView(Ui.divider());
-            c.addView(Ui.kv("Pendiente de subir", Ui.plural(g.pending.size() + g.deleted.size(), "cambio", "cambios")));
+            c.addView(Ui.kv("Pendiente de subir", Ui.plural(g.pending.size() + g.deleted.size() + g.dirtyPlayers.size(), "cambio", "cambios")));
         }
         body.addView(c, Ui.cardLp());
 
@@ -554,6 +565,42 @@ class GroupDetail extends Screen {
         body.addView(Ui.space(10));
         LinearLayout sync = Ui.iconTextButton(Ico.SYNC, syncing ? "Sincronizando…" : "Sincronizar ahora", Theme.BLUE_TEXT, () -> syncNow(g));
         body.addView(sync, lp(MW, WC));
+
+        body.addView(Ui.section("Jugadores del grupo"));
+        List<Player> gps = new ArrayList<>();
+        List<Player> outside = new ArrayList<>();
+        for (Player p : st.playersSorted()) (st.groupsOf(p.id).contains(g) ? gps : outside).add(p);
+        LinearLayout pc = Ui.card();
+        if (gps.isEmpty()) pc.addView(Ui.tv("Aún no hay jugadores en el grupo.", 14, Theme.MUTED, Theme.REG));
+        for (int i = 0; i < gps.size(); i++) {
+            Player p = gps.get(i);
+            if (i > 0) pc.addView(Ui.divider());
+            LinearLayout r = Ui.h();
+            Ui.pad(r, 0, 9, 0, 9);
+            r.addView(Ui.dot(p.color, 18));
+            TextView t = Ui.one(p.name + (p.id.equals(g.me) ? " (tú)" : ""), 15, Theme.TEXT, Theme.MED);
+            t.setPadding(dp(10), 0, 0, 0);
+            r.addView(t, lp(0, WC, 1));
+            pc.addView(r);
+        }
+        body.addView(pc, Ui.cardLp());
+        if (!outside.isEmpty()) {
+            body.addView(Ui.iconTextButton(Ico.PLUS, "Añadir jugadores al grupo", Theme.BLUE_TEXT, () -> StatsScreen.multiPick(a, "Añadir al grupo",
+                    "Elige jugadores de tu móvil. Aparecerán en todos los móviles del grupo, aunque no tengan la app, y al unirse podrán elegirse.",
+                    outside, new ArrayList<>(), "Añadir", ids -> {
+                        if (ids.isEmpty()) return false;
+                        for (String id : ids) if (!g.dirtyPlayers.contains(id)) g.dirtyPlayers.add(id);
+                        st.saveGroups();
+                        Sync.run(a, () -> Cloud.syncGroup(Sync.host(a), g), r -> {
+                            a.refresh();
+                            a.toast(Ui.plural(ids.size(), "jugador añadido", "jugadores añadidos") + " al grupo");
+                        }, err -> { a.refresh(); a.info("No se pudieron añadir", err + "\n\nSe volverá a intentar al sincronizar."); });
+                        return true;
+                    })), lp(MW, WC));
+        }
+        TextView pn = GroupsScreen.note("Pueden estar aunque no tengan la app: las partidas en las que jueguen se comparten igual. Si se unen, se eligen en «¿Quién eres tú?».");
+        pn.setPadding(dp(2), dp(8), dp(2), 0);
+        body.addView(pn);
 
         body.addView(Ui.section("Móviles en el grupo"));
         if (members == null && !loading && membersError == null) loadMembers(g);

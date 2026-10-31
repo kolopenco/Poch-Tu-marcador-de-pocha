@@ -56,14 +56,14 @@
   // ------------------------------------------------------------------ elegir «quién eres tú»
 
   /** Lista de opciones: jugadores (id, nombre, color) + «Soy nuevo». Devuelve { el, value() }. */
-  function whoAmI(players, preset, presetName, onChange) {
+  function whoAmI(players, preset, presetName, onChange, sub) {
     let sel = preset || null;
     const name = P.input('Tu nombre', presetName || '');
     name.oninput = () => { if (onChange) onChange(sel, name.value); };
     const box = h('div');
     const paint = () => {
       box.replaceChildren();
-      for (const p of players) box.appendChild(P.option(p.name, null, sel === p.id, () => { sel = p.id; paint(); if (onChange) onChange(sel, name.value); }));
+      for (const p of players) box.appendChild(P.option(p.name, sub ? sub(p) : null, sel === p.id, () => { sel = p.id; paint(); if (onChange) onChange(sel, name.value); }));
       box.appendChild(P.option('Soy nuevo', 'No estoy en la lista', sel === '__new', () => { sel = '__new'; paint(); if (onChange) onChange(sel, name.value); setTimeout(() => name.focus(), 50); }));
       if (sel === '__new') box.appendChild(h('div', { style: { margin: '0 0 8px' } }, name));
     };
@@ -147,8 +147,10 @@
         h('div', { class: 'grow' }, h('div', { style: { fontSize: '17px', fontWeight: '700' } }, f.g.name),
           h('div', { class: 'text2', style: { fontSize: '13px', marginTop: '3px' } }, P.plural(f.players.length, 'jugador', 'jugadores') + ' · ' + P.plural(f.games.length, 'partida', 'partidas')))));
       body.appendChild(P.section('¿Quién eres tú?'));
-      who = whoAmI(f.players.slice().sort((a, b) => a.name.localeCompare(b.name, 'es')), S.me, S.meName, (v, n) => { S.me = v; S.meName = n; });
+      who = whoAmI(f.players.slice().sort((a, b) => a.name.localeCompare(b.name, 'es')), S.me, S.meName, (v, n) => { S.me = v; S.meName = n; },
+        (p) => { const c = (f.claimed || {})[p.id]; return !c ? null : c === 1 ? 'Ya lo usa otro móvil (puedes ser tú en otro dispositivo)' : 'Ya lo usan ' + c + ' móviles'; });
       body.appendChild(who.el);
+      body.appendChild(h('div', { class: 'note', style: { margin: '2px 2px 8px' } }, 'Si ya entraste desde otro móvil, elígete en la lista: no te crees de nuevo.'));
       if (st.players.length && f.players.length) {
         body.appendChild(P.section('Une los jugadores con los tuyos'));
         body.appendChild(h('div', { class: 'note', style: { margin: '-4px 2px 10px', fontSize: '13px' } }, 'Si ya tenías a alguno en tu móvil, únelo para que sus partidas y estadísticas se sumen.'));
@@ -200,6 +202,7 @@
         const r = await P.joinApply(S.fetched.g, S.map, w.id, w.newName);
         P.popToRoot(P.tab());
         if (P.tab() === 4) P.push(P.Groups()); else P.refresh();
+        if (r.error) { P.info('Ya estás en «' + S.fetched.g.name + '»', 'Pero no se ha podido terminar de sincronizar: ' + P.syncError(r.error) + '\n\nSe volverá a intentar al abrir la app. Si sigue fallando, avisa a quien creó el grupo.'); return; }
         P.info('¡Ya estás en «' + S.fetched.g.name + '»!', 'Se han descargado ' + P.plural(r.newGames, 'partida', 'partidas') + '. A partir de ahora, al abrir la app se bajan las novedades y cada partida se sube al cerrarla.\n\nAl crear una partida, elige el grupo para que se comparta.');
       } catch (e) { S.busy = false; P.refresh(); P.info('No se pudo unir', P.syncError(e)); }
     }
@@ -240,6 +243,24 @@
         try { const r = await P.syncGroup(g); P.refresh(); P.toast(r.newGames + r.updatedGames ? P.plural(r.newGames + r.updatedGames, 'partida nueva', 'partidas nuevas') : 'Todo al día'); }
         catch (e) { P.info('No se pudo sincronizar', P.syncError(e)); }
       }, 'sync'));
+      body.appendChild(P.section('Jugadores del grupo'));
+      const inG = [], outG = [];
+      for (const p of P.sorted()) (P.groupsOf(p.id).indexOf(g) >= 0 ? inG : outG).push(p);
+      body.appendChild(h('div', { class: 'card' }, inG.length ? inG.map((p, i) => [i ? h('div', { class: 'hr' }) : null,
+        h('div', { class: 'row', style: { padding: '8px 0', gap: '10px' } }, P.dot(p.color, 18), h('div', { class: 'grow ell', style: { fontWeight: '500' } }, p.name + (p.id === g.me ? ' (tú)' : '')))])
+        : h('div', { class: 'muted' }, 'Aún no hay jugadores en el grupo.')));
+      if (outG.length) {
+        body.appendChild(h('div', { style: { height: '10px' } }));
+        body.appendChild(P.secondary('Añadir jugadores al grupo', '#4AA0FF', () => P.multiPick('Añadir al grupo',
+          'Elige jugadores de tu móvil. Aparecerán en todos los móviles del grupo, aunque no tengan la app, y al unirse podrán elegirse.',
+          outG, [], 'Añadir', (ids) => {
+            if (!ids.length) return false;
+            P.addPlayersToGroup(g, ids).then(() => { P.refresh(); P.toast(P.plural(ids.length, 'jugador añadido', 'jugadores añadidos') + ' al grupo'); })
+              .catch((e) => { P.refresh(); P.info('No se pudieron añadir', P.syncError(e) + '\n\nSe volverá a intentar al sincronizar.'); });
+            return true;
+          }), 'plus'));
+      }
+      body.appendChild(h('div', { class: 'note', style: { margin: '8px 2px 0' } }, 'Pueden estar aunque no tengan la app: las partidas en las que jueguen se comparten igual. Si se unen, se eligen en «¿Quién eres tú?».'));
       body.appendChild(P.section('Miembros'));
       const mb = h('div', { class: 'card' }, h('div', { class: 'muted' }, 'Cargando…'));
       body.appendChild(mb);

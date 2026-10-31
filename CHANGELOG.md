@@ -1,5 +1,10 @@
 # Novedades
 
+## 1.2.2
+- Grupo: nueva sección **Jugadores del grupo** con «Añadir jugadores al grupo». Así están todos, aunque no tengan la app: aparecen en todos los móviles y sus partidas se comparten igual.
+- Al unirse, «¿Quién eres tú?» indica qué jugadores ya usa otro móvil, para no crearse dos veces.
+- Al unirse, tu jugador se sube al grupo lo primero; si algo falla, la app avisa y lo reintenta al abrirla.
+
 ## 1.2.1
 - Pantalla principal: si no estás en ningún grupo, «¿Quieres unirte?» abre directamente la invitación.
 - Jugadores: la lista y la ficha muestran a qué grupo pertenece cada uno.

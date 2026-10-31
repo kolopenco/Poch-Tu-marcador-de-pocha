@@ -193,7 +193,15 @@
     try { const gd = fields(await http('GET', EP.fs + '/' + docPath(g), null, tk)); if (gd.name) g.name = gd.name; } catch (e) { /* el nombre de la invitación vale */ }
     const players = (await query(g, 'players')).map((d) => JSON.parse(fields(d).json || '{}')).filter((p) => p.id);
     const games = (await query(g, 'games')).map((d) => fields(d)).filter((f) => !f.deleted && f.json).map((f) => E.normGame(JSON.parse(f.json)));
-    return { g, players, games };
+    const claimed = {};
+    try {
+      const r = await http('GET', EP.fs + '/' + docPath(g, 'members') + '?pageSize=300', null, tk);
+      for (const d of (r && r.documents) || []) {
+        const f = fields(d);
+        if (docId(d) !== g.uid && f.player) claimed[f.player] = (claimed[f.player] || 0) + 1;
+      }
+    } catch (e) { /* no es imprescindible */ }
+    return { g, players, games, claimed };
   };
 
   /** Segundo paso: aplica el emparejamiento elegido (map: idGrupo → idLocal|null) y queda unido. */
@@ -206,9 +214,29 @@
       g.me = p.id;
       g.dirtyPlayers = [p.id];
     } else g.me = localId(g, meRemote);
+    if (!meNewName && meRemote && !Object.prototype.hasOwnProperty.call(map, meRemote)) g.dirtyPlayers = [g.me];
     st.groups = (st.groups || []).filter((x) => x.id !== g.id).concat([g]);
     P.save();
-    try { await writeMember(g); } catch (e) { /* se reintenta al sincronizar */ }
+    // Primero, «tú» en el grupo (para que otro móvil tuyo te encuentre en la lista); luego lo demás
+    try {
+      const p = g.me && (g.dirtyPlayers || []).indexOf(g.me) >= 0 ? P.player(g.me) : null;
+      if (p) {
+        const rid = remoteId(g, p.id);
+        await commit(g, [upd(docPath(g, 'players/' + rid), { json: strF(JSON.stringify({ id: rid, name: p.name, color: p.color, created: p.created || 0, updated: p.updated || 0 })) })]);
+        g.roster[rid] = true;
+        g.dirtyPlayers = g.dirtyPlayers.filter((x) => x !== p.id);
+        P.save();
+      }
+      await writeMember(g);
+    } catch (e) { return { newGames: 0, updatedGames: 0, players: 0, uploaded: 0, error: e }; }
+    try { return await P.syncGroup(g); } catch (e) { return { newGames: 0, updatedGames: 0, players: 0, uploaded: 0, error: e }; }
+  };
+
+  /** Sube jugadores de este móvil al grupo (para que aparezcan en todos los móviles, tengan app o no). */
+  P.addPlayersToGroup = async (g, ids) => {
+    g.dirtyPlayers = g.dirtyPlayers || [];
+    for (const id of ids) if (g.dirtyPlayers.indexOf(id) < 0) g.dirtyPlayers.push(id);
+    P.save();
     return P.syncGroup(g);
   };
 
