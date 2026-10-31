@@ -53,9 +53,11 @@ jobs:
       - name: Compilar y pasar las pruebas
         working-directory: android
         env:
-          POCH_KEY_PASSWORD: ${{ secrets.POCH_KEY_PASSWORD }}
+          PW: ${{ secrets.POCH_KEY_PASSWORD }}
         run: |
           set -o pipefail
+          # Quita espacios o saltos de línea que se cuelan al pegar el secreto
+          export POCH_KEY_PASSWORD="$(printf '%s' "$PW" | tr -d ' \r\n\t')"
           gradle assembleRelease testReleaseUnitTest --no-daemon --stacktrace 2>&1 | tee ../build.log
 
       - name: Resumen de errores
