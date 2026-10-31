@@ -27,6 +27,7 @@ import java.util.Map;
 
 /** Lista de jugadores con buscador y botón para añadir. */
 class PlayersScreen extends Screen {
+    @Override boolean liveRefresh() { return true; }
     String query = "";
     private LinearLayout list;
 
@@ -101,7 +102,7 @@ class PlayersScreen extends Screen {
         for (Player p : ps) {
             if (!nq.isEmpty() && !norm(p.name).contains(nq)) continue;
             shown++;
-            list.addView(Ui.listRow(Ui.dot(p.color, 32), p.name, gamesWins(stats.get(p.id)),
+            list.addView(Ui.listRow(Ui.dot(p.color, 32), st.isMe(p.id) ? p.name + " (tú)" : p.name, gamesWins(stats.get(p.id)),
                     () -> a.push(new PlayerDetail(a, p.id))));
         }
         if (shown == 0) {
@@ -149,7 +150,10 @@ class PlayersScreen extends Screen {
                 return;
             }
             if (p == null) st.addPlayer(n, color[0]);
-            else st.updatePlayer(p, n, color[0]);
+            else {
+                st.updatePlayer(p, n, color[0]);
+                Sync.playerChanged(a, p);
+            }
             a.closeOverlay();
             done.run();
         }), lp(MW, WC));

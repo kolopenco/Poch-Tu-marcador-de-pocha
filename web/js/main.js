@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const P = window.P, E = window.Engine, h = P.h, st = P.st;
-  P.VERSION = '1.1.0';
+  P.VERSION = '1.2.0';
 
   const TABS = [['Partida', 'trophy'], ['Historial', 'list'], ['Jugadores', 'people'], ['Estadísticas', 'chart'], ['Ajustes', 'gear']];
   let tab = 0, shown = null;
@@ -83,6 +83,17 @@
     history.replaceState({ d: 1 }, '');
     history.pushState({ d: 2 }, '');
     show();
+    // Invitación a un grupo abierta desde el enlace (al arrancar o con la app ya abierta)
+    const checkInvite = () => {
+      const m = location.hash.match(/unirse=([A-Za-z0-9_-]+)/);
+      if (!m) return;
+      history.replaceState(history.state, '', location.pathname + location.search);
+      P.openIn(4, P.JoinScreen('unirse=' + m[1]));
+    };
+    checkInvite();
+    window.addEventListener('hashchange', checkInvite);
+    // Al abrir la app se bajan las novedades de los grupos
+    setTimeout(() => { P.syncQuiet(false).catch(() => {}); }, 400);
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
     // Con el teclado abierto se oculta la barra de pestañas para dejar sitio

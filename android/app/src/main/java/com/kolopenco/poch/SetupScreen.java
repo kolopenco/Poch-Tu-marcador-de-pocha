@@ -32,6 +32,8 @@ class SetupScreen extends Screen {
     String profileId;
     boolean customized;
     String mode = Model.SIMPLE;
+    /** Grupo con el que se compartirá la partida (null = solo este móvil). */
+    String group;
 
     private LinearLayout selBox;
     private TextView countNote;
@@ -46,6 +48,7 @@ class SetupScreen extends Screen {
         Rules def = st.defaultRules();
         rules = def.copy();
         profileId = def.id;
+        group = st.group(st.lastGroup) != null ? st.lastGroup : st.groups.size() == 1 ? st.groups.get(0).id : null;
     }
 
     @Override boolean onBack() {
@@ -138,6 +141,18 @@ class SetupScreen extends Screen {
     // ------------------------------------------------------------------ paso 1: jugadores
 
     private void stepPlayers(LinearLayout body) {
+        if (!st.groups.isEmpty()) {
+            TextView gl = Ui.one("Grupo de la partida", 13.5f, Theme.TEXT2, Theme.MED);
+            gl.setPadding(dp(2), dp(10), 0, dp(8));
+            body.addView(gl);
+            Flow gf = new Flow(a, dp(8), dp(8));
+            for (Model.Group x : st.groups) gf.addView(Ui.chip(x.name, x.id.equals(group), () -> { group = x.id; a.refresh(); }));
+            gf.addView(Ui.chip("Sin grupo", group == null, () -> { group = null; a.refresh(); }));
+            body.addView(gf, lp(MW, WC));
+            TextView gn = Ui.tv(group != null ? "Al cerrarla, se compartirá con el grupo." : "Solo se guardará en este móvil.", 12.5f, Theme.MUTED, Theme.REG);
+            gn.setPadding(dp(2), dp(6), 0, 0);
+            body.addView(gn);
+        }
         TextView title = Ui.tv("Orden de reparto", 24, Theme.TEXT, Theme.BOLD);
         title.setGravity(Gravity.CENTER);
         body.addView(title, lpm(MW, WC, 0, 14, 0, 8));
@@ -470,6 +485,8 @@ class SetupScreen extends Screen {
         Rules r = rules.copy();
         if (customized) r.name = "Personalizadas";
         Game g = Engine.newGame(Store.newId("g"), r, mode, sel, names, colors, System.currentTimeMillis());
+        g.group = group;
+        st.saveLastGroup(group);
         st.addGame(g, true);
         a.popToRoot(0);
         a.refresh();

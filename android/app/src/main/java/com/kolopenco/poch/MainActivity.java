@@ -112,6 +112,44 @@ public class MainActivity extends Activity {
         int start = b == null ? 0 : b.getInt("tab", 0);
         tab = start;
         show();
+        handleIntent(getIntent());
+    }
+
+    private long lastAutoSync;
+
+    @Override protected void onStart() {
+        super.onStart();
+        // Al abrir (o volver a) la app: baja lo nuevo de los grupos y sube lo pendiente
+        long now = System.currentTimeMillis();
+        if (now - lastAutoSync > 30000) {
+            lastAutoSync = now;
+            root.postDelayed(() -> Sync.quiet(this, false), 400);
+        }
+    }
+
+    @Override protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        setIntent(i);
+        handleIntent(i);
+    }
+
+    /** Un mensaje de invitación compartido con Poch!: abre «Unirse a un grupo». */
+    private void handleIntent(Intent i) {
+        if (i == null || !Intent.ACTION_SEND.equals(i.getAction())) return;
+        String text = i.getStringExtra(Intent.EXTRA_TEXT);
+        i.setAction(null);
+        if (text == null || Cloud.parseInvite(text) == null) {
+            toast("Ese texto no es una invitación de Poch!");
+            return;
+        }
+        openIn(4, new JoinScreen(this, text));
+    }
+
+    /** Redibuja tras una sincronización si no se está usando ninguna ventana ni editando. */
+    void refreshIfIdle() {
+        if (overlays.getChildCount() > 0) return;
+        Screen s = current();
+        if (s != null && s.liveRefresh()) show();
     }
 
     @Override protected void onSaveInstanceState(Bundle out) {

@@ -31,6 +31,7 @@ final class Json {
         o.put("name", p.name);
         o.put("color", p.color);
         o.put("created", p.created);
+        if (p.updated != 0) o.put("updated", p.updated);
         return o;
     }
 
@@ -40,6 +41,7 @@ final class Json {
         p.name = o.optString("name");
         p.color = o.optInt("color", 0xFF607080);
         p.created = o.optLong("created", 0);
+        p.updated = o.optLong("updated", 0);
         return p;
     }
 
@@ -269,6 +271,8 @@ final class Json {
         for (Round rd : g.rounds) rs.put(round(rd));
         o.put("rounds", rs);
         if (g.closed) o.put("closed", true);
+        if (g.group != null) o.put("group", g.group);
+        if (g.updated != 0) o.put("updated", g.updated);
         return o;
     }
 
@@ -298,6 +302,8 @@ final class Json {
             }
         }
         g.closed = o.optBoolean("closed", false);
+        g.group = o.has("group") ? o.optString("group") : null;
+        g.updated = o.optLong("updated", 0);
         return g;
     }
 
@@ -315,5 +321,58 @@ final class Json {
             if (o != null && !o.optString("id").isEmpty()) out.add(game(o));
         }
         return out;
+    }
+
+    // ------------------------------------------------------------ grupos
+
+    static JSONObject group(Model.Group g) throws JSONException {
+        JSONObject o = new JSONObject();
+        o.put("id", g.id); o.put("name", g.name); o.put("apiKey", g.apiKey); o.put("projectId", g.projectId); o.put("key", g.key);
+        if (g.uid != null) o.put("uid", g.uid);
+        if (g.refresh != null) o.put("refresh", g.refresh);
+        o.put("owner", g.owner);
+        if (g.me != null) o.put("me", g.me);
+        JSONObject ids = new JSONObject();
+        for (Map.Entry<String, String> e : g.ids.entrySet()) ids.put(e.getKey(), e.getValue());
+        o.put("ids", ids);
+        o.put("roster", strings(g.roster));
+        o.put("pending", strings(g.pending));
+        o.put("deleted", strings(g.deleted));
+        o.put("dirtyPlayers", strings(g.dirtyPlayers));
+        if (g.lastPlayers != null) o.put("lastPlayers", g.lastPlayers);
+        if (g.lastGames != null) o.put("lastGames", g.lastGames);
+        o.put("lastSync", g.lastSync);
+        return o;
+    }
+
+    static Model.Group group(JSONObject o) {
+        Model.Group g = new Model.Group();
+        g.id = o.optString("id"); g.name = o.optString("name", "Grupo"); g.apiKey = o.optString("apiKey");
+        g.projectId = o.optString("projectId"); g.key = o.optString("key");
+        g.uid = o.has("uid") ? o.optString("uid") : null;
+        g.refresh = o.has("refresh") ? o.optString("refresh") : null;
+        g.owner = o.optBoolean("owner", false);
+        g.me = o.has("me") ? o.optString("me") : null;
+        JSONObject ids = o.optJSONObject("ids");
+        if (ids != null) { Iterator<String> it = ids.keys(); while (it.hasNext()) { String k = it.next(); g.ids.put(k, ids.optString(k)); } }
+        readStrings(o.optJSONArray("roster"), g.roster);
+        readStrings(o.optJSONArray("pending"), g.pending);
+        readStrings(o.optJSONArray("deleted"), g.deleted);
+        readStrings(o.optJSONArray("dirtyPlayers"), g.dirtyPlayers);
+        g.lastPlayers = o.has("lastPlayers") ? o.optString("lastPlayers") : null;
+        g.lastGames = o.has("lastGames") ? o.optString("lastGames") : null;
+        g.lastSync = o.optLong("lastSync", 0);
+        return g;
+    }
+
+    private static JSONArray strings(java.util.Collection<String> c) {
+        JSONArray a = new JSONArray();
+        for (String s : c) a.put(s);
+        return a;
+    }
+
+    private static void readStrings(JSONArray a, java.util.Collection<String> into) {
+        if (a == null) return;
+        for (int i = 0; i < a.length(); i++) into.add(a.optString(i));
     }
 }

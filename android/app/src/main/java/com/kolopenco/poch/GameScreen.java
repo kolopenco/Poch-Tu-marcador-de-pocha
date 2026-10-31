@@ -517,6 +517,7 @@ class GameScreen extends Screen {
         boolean any = Engine.commitEdit(g, r, editSnap, System.currentTimeMillis());
         if (any) {
             st.saveGame(g);
+            if (!Model.ACTIVE.equals(g.status)) Sync.changed(a, g);
             a.toast("Ronda corregida · totales recalculados");
         } else {
             a.toast("No había cambios");
@@ -529,6 +530,7 @@ class GameScreen extends Screen {
         Round r = rd();
         if (Engine.undo(g, r, System.currentTimeMillis())) {
             st.saveGame(g);
+            if (!Model.ACTIVE.equals(g.status)) Sync.changed(a, g);
             a.toast("Corrección deshecha");
             render(false);
         }
@@ -565,6 +567,7 @@ class GameScreen extends Screen {
                     g.ended = System.currentTimeMillis();
                     st.saveGame(g);
                     st.setActive(null);
+                    Sync.changed(a, g);
                     a.popToRoot(0);
                     a.openIn(1, new HistoryDetail(a, g.id));
                     a.toast("Partida guardada sin victoria");
@@ -585,6 +588,7 @@ class GameScreen extends Screen {
 
 /** Raíz de la pestaña Partida: el marcador si hay partida, o el inicio si no. */
 class GameTab extends Screen {
+    @Override boolean liveRefresh() { return st.active() == null; }
     /** Al volver de la clasificación tras elegir desempate, ir directamente a la nueva ronda. */
     static boolean jumpToCurrent;
     private GameScreen inner;
@@ -744,9 +748,10 @@ class FinalScreen extends Screen {
         g.ended = System.currentTimeMillis();
         st.saveGame(g);
         st.setActive(null);
+        Sync.changed(a, g);
         a.popToRoot(0);
         a.openIn(1, new HistoryDetail(a, g.id));
-        a.toast("Partida guardada en el historial");
+        a.toast(g.group != null ? "Partida guardada y compartida con el grupo" : "Partida guardada en el historial");
     }
 
     static final int[] MEDALS = {Theme.GOLD, Theme.SILVER, Theme.BRONZE};

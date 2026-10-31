@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// Reglas de seguridad para los grupos de juego de Poch!
+// Cópialas enteras en Firebase › Firestore Database › Reglas y pulsa «Publicar».
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function group(g) { return get(/databases/$(database)/documents/groups/$(g)).data; }
+    function isMember(g) { return signedIn() && exists(/databases/$(database)/documents/groups/$(g)/members/$(request.auth.uid)); }
+    function isOwner(g) { return signedIn() && group(g).owner == request.auth.uid; }
+
+    match /groups/{g} {
+      // Solo los miembros ven el grupo; lo crea su dueño y solo él lo cambia o lo borra
+      allow read: if isMember(g);
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
+      allow update, delete: if isOwner(g);
+
+      // Para entrar hay que conocer la clave del grupo (va en la invitación)
+      match /members/{uid} {
+        allow read: if isMember(g);
+        allow create, update: if signedIn() && uid == request.auth.uid
+                              && request.resource.data.key == group(g).key;
+        allow delete: if signedIn() && (uid == request.auth.uid || isOwner(g));
+      }
+
+      // Jugadores y partidas: cualquier miembro lee y escribe
+      match /players/{id} {
+        allow read, write: if isMember(g);
+      }
+      match /games/{id} {
+        allow read, write: if isMember(g);
+      }
+    }
+  }
+}

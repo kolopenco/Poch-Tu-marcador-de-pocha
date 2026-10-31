@@ -25,6 +25,7 @@ import java.util.List;
 
 /** Historial de partidas con filtros Todas / Finalizadas / Incompletas. */
 class HistoryScreen extends Screen {
+    @Override boolean liveRefresh() { return true; }
     int filter;
 
     HistoryScreen(MainActivity a) { super(a); }
@@ -261,11 +262,13 @@ class HistoryDetail extends Screen {
     }
 
     private void delete(Game g) {
-        a.confirm("Eliminar partida", "Se borrará del historial y dejará de contar en las estadísticas. No se puede deshacer.",
+        a.confirm("Eliminar partida", "Se borrará del historial y dejará de contar en las estadísticas."
+                        + (g.group != null && st.group(g.group) != null ? " También se borrará en los móviles del grupo." : "") + " No se puede deshacer.",
                 "Eliminar", true, () -> {
+                    Sync.deleted(a, g);
                     st.deleteGame(g);
                     a.pop();
-                    a.toast("Partida eliminada");
+                    a.toast(g.group != null ? "Partida eliminada también del grupo" : "Partida eliminada");
                 });
     }
 
@@ -357,6 +360,7 @@ class HistoryDetail extends Screen {
             acts.addView(Ui.iconTextButton(Ico.UNDO, "Deshacer", Theme.TEXT2, () -> {
                 Engine.undo(g, r, System.currentTimeMillis());
                 st.saveGame(g);
+                if (!Model.ACTIVE.equals(g.status)) Sync.changed(a, g);
                 a.toast("Corrección deshecha");
                 a.refresh();
             }), p);

@@ -32,6 +32,10 @@ final class Store {
     final List<String> statsSel = new ArrayList<>();
     /** Jugadores de la comparativa «partidas juntos». */
     final List<String> statsCmp = new ArrayList<>();
+    /** Grupos de juego a los que pertenece este móvil. */
+    final List<Model.Group> groups = new ArrayList<>();
+    /** Último grupo elegido al empezar partida. */
+    String lastGroup;
 
     private static final Random RND = new Random();
 
@@ -52,6 +56,15 @@ final class Store {
         games.clear();
         statsSel.clear();
         statsCmp.clear();
+        groups.clear();
+        try {
+            JSONArray gs = new JSONArray(sp.getString("groups", "[]"));
+            for (int i = 0; i < gs.length(); i++) {
+                JSONObject o = gs.optJSONObject(i);
+                if (o != null && !o.optString("id").isEmpty()) groups.add(Json.group(o));
+            }
+        } catch (Exception ignored) { }
+        lastGroup = sp.getString("last_group", null);
         try {
             players.addAll(Json.players(new JSONArray(sp.getString("players", "[]"))));
         } catch (Exception ignored) { }
@@ -233,6 +246,45 @@ final class Store {
     Game lastGame() {
         List<Game> gs = gamesByDate();
         return gs.isEmpty() ? null : gs.get(0);
+    }
+
+    // ------------------------------------------------------------------ grupos
+
+    synchronized void saveGroups() {
+        try {
+            JSONArray a = new JSONArray();
+            for (Model.Group g : groups) a.put(Json.group(g));
+            sp.edit().putString("groups", a.toString()).apply();
+        } catch (Exception ignored) { }
+    }
+
+    void saveLastGroup(String id) {
+        lastGroup = id;
+        sp.edit().putString("last_group", id).apply();
+    }
+
+    Model.Group group(String id) {
+        if (id == null) return null;
+        for (Model.Group g : groups) if (g.id.equals(id)) return g;
+        return null;
+    }
+
+    /** ¿Es este jugador «tú» en algún grupo? */
+    boolean isMe(String pid) {
+        for (Model.Group g : groups) if (pid.equals(g.me)) return true;
+        return false;
+    }
+
+    /** Guarda todo (tras sincronizar). */
+    void saveAll() {
+        savePlayers();
+        SharedPreferences.Editor e = sp.edit();
+        for (String k : sp.getAll().keySet()) if (k.startsWith("game_") && !k.equals("game_ids") && !games.containsKey(k.substring(5))) e.remove(k);
+        e.apply();
+        for (Game g : games.values()) saveGame(g);
+        saveIds();
+        if (activeId != null && !games.containsKey(activeId)) setActive(null);
+        saveGroups();
     }
 
     // ------------------------------------------------------------------ estadísticas

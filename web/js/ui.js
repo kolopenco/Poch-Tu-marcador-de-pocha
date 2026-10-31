@@ -264,7 +264,7 @@
   const KEY = 'poch.v1';
   const st = P.st = {
     players: [], profiles: [], defaultProfile: 'clasica', games: [], activeGame: null,
-    statsSel: [], statsCmp: [], lastBackup: 0, prevData: null, prevTime: 0,
+    statsSel: [], statsCmp: [], lastBackup: 0, prevData: null, prevTime: 0, groups: [], lastGroup: null,
   };
   P.load = () => {
     try {

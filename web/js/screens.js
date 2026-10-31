@@ -115,7 +115,9 @@
       body.appendChild(h('div', { class: 'row', style: { marginTop: '10px' } },
         h('div', { class: 'grow' }, P.secondary('Revisar rondas', '#FFC83A', () => P.push(P.GameScreen(g, true, 0)), 'edit')),
         h('div', null, P.secondary('Eliminar', '#FF6A5C', () => P.confirm('Eliminar partida', 'Se borrará del historial y dejará de contar en las estadísticas. No se puede deshacer.', 'Eliminar', true, () => {
+          P.markDeleted(g);
           st.games = st.games.filter((x) => x !== g); P.save(); P.pop(); P.toast('Partida eliminada');
+          P.syncQuiet(false);
         }), 'trash'))));
     }
 
@@ -154,7 +156,7 @@
       body.appendChild(t);
       const acts = h('div', { class: 'row', style: { marginTop: '12px' } },
         h('div', { class: 'grow' }, P.secondary('Editar ronda', '#FFC83A', () => P.push(P.GameScreen(g, true, S.round, true)), 'edit')));
-      if (E.canUndo(r)) acts.appendChild(h('div', { class: 'grow' }, P.secondary('Deshacer', '#B4BFD2', () => { E.undo(g, r, Date.now()); P.save(); P.toast('Corrección deshecha'); P.refresh(); }, 'undo')));
+      if (E.canUndo(r)) acts.appendChild(h('div', { class: 'grow' }, P.secondary('Deshacer', '#B4BFD2', () => { E.undo(g, r, Date.now()); P.save(); P.markGame(g); P.syncQuiet(true); P.toast('Corrección deshecha'); P.refresh(); }, 'undo')));
       body.appendChild(acts);
       if ((r.revs || []).length) {
         body.appendChild(P.section('Correcciones de esta ronda'));
@@ -246,7 +248,8 @@
         for (const p of ps) {
           if (nq && E.norm(p.name).indexOf(nq) < 0) continue;
           n++;
-          list.appendChild(P.lrow(P.dot(p.color, 32), p.name, winsText(stats[p.id]), () => P.push(PlayerDetail(p.id))));
+          const isMe = (st.groups || []).some((g) => g.me === p.id);
+          list.appendChild(P.lrow(P.dot(p.color, 32), p.name + (isMe ? ' (tú)' : ''), winsText(stats[p.id]), () => P.push(PlayerDetail(p.id))));
         }
         if (!n) list.appendChild(h('div', { class: 'empty' }, st.players.length ? 'Ningún jugador coincide con la búsqueda.' : 'Aún no hay jugadores. Pulsa + para añadir el primero.'));
       };
@@ -275,6 +278,7 @@
         else {
           p.name = n; p.color = color;
           for (const g of st.games) if (g.order.indexOf(p.id) >= 0) { g.names[p.id] = n; g.colors[p.id] = color; }
+          P.markPlayer(p);
         }
         P.save(); P.closeOverlay(); P.refresh();
       }));
@@ -497,6 +501,8 @@
       root.appendChild(P.header(P.icon('gear', '#fff', 26), 'Ajustes'));
       const body = h('div', { class: 'body', style: { paddingTop: '2px' } });
       body.appendChild(P.lrow(badge('sliders', '#3A92FF'), 'Perfiles de reglas', P.plural(st.profiles.length, 'perfil', 'perfiles') + ' · por defecto: ' + P.defaultRules().name, () => P.push(Profiles())));
+      const ng = (st.groups || []).length;
+      body.appendChild(P.lrow(badge('people', '#3A92FF'), 'Grupos de juego', ng ? P.joinNames(st.groups.map((g) => g.name)) : 'Compartid partidas entre vuestros móviles', () => P.push(P.Groups())));
       body.appendChild(P.lrow(badge('backup', '#2BC46A'), 'Copias de seguridad', st.lastBackup ? 'Última copia: ' + P.dateTime(st.lastBackup) : 'Nunca se ha hecho una copia', () => P.push(Backup())));
       body.appendChild(P.lrow(badge('people', '#F28B24'), 'Jugadores', P.plural(st.players.length, 'jugador registrado', 'jugadores registrados'), () => P.selectTab(2)));
       if (!P.standalone()) body.appendChild(P.lrow(badge('download', '#FFC83A'), 'Instalar en el móvil', 'Añádela a la pantalla de inicio', () => P.info('Instalar Poch!', P.installText())));

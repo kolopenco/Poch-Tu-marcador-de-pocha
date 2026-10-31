@@ -22,6 +22,9 @@ abstract class Screen {
     /** Devuelve true si la pantalla gestiona el botón atrás por sí misma. */
     boolean onBack() { return false; }
 
+    /** Se puede redibujar sola cuando llegan datos del grupo (listas, no formularios). */
+    boolean liveRefresh() { return false; }
+
     void onResult(int request, int result, Intent data) { }
 
     void rememberScroll() {

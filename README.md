@@ -6,7 +6,7 @@
 
 <p align="center">
   Marcador, historial y estadísticas para partidas de <b>La Pocha</b> con baraja española.<br>
-  Gratis, sin anuncios, sin registro y sin Internet.
+  Gratis, sin anuncios, sin registro y sin Internet. Y si queréis, en grupo con vuestros amigos.
 </p>
 
 <p align="center">
@@ -29,6 +29,7 @@
 - **Final de partida.** Clasificación con podio. Si hay empate, la app pregunta en ese momento si compartís la victoria o desempatáis a una carta.
 - **Historial y estadísticas.** Victorias, posición media, rondas acertadas, subastas ganadas… por jugador o comparando a varios, y también **solo en las partidas que habéis jugado juntos**.
 - **Vuestras reglas.** Perfiles con puntuación, multiplicadores por palo, secuencia de rondas y política de empates.
+- **Jugar en grupo.** Partidas y estadísticas compartidas entre los móviles de tus amigos (Android y iPhone), con vuestro propio Firebase gratuito y sin cuentas.
 - **Copias de seguridad compartibles.** Exporta una copia y pásasela a otro móvil: al importarla elige **sustituir** o **mezclar**, uniendo cada jugador con el tuyo para sumar estadísticas. Android y la versión web usan el mismo formato.
 
 ## Cómo instalarla
@@ -49,7 +50,17 @@ Los datos se guardan en tu propio móvil. Haz una copia de seguridad de vez en c
 
 También puedes usar la versión web en Android desde Chrome (menú › *Instalar aplicación*).
 
-## Pasarse partidas entre amigos
+## Jugar en grupo
+
+Un grupo comparte jugadores, partidas y estadísticas entre vuestros móviles. Cada partida que se cierra se sube, y al abrir la app se bajan las de los demás.
+
+1. **Una persona** crea un proyecto gratuito de Firebase siguiendo la **[guía paso a paso](docs/grupo.md)** (unos 10 minutos) y en Poch! va a **Ajustes › Grupos de juego › Crear un grupo nuevo**.
+2. Manda la **invitación** a sus amigos (WhatsApp, correo…).
+3. Los demás la abren (iPhone) o la copian y pulsan **Unirse** (Android), dicen **quién son** y unen los jugadores que ya tuvieran.
+
+No hay cuentas ni servidor de Poch!: los datos quedan en el proyecto de Firebase de quien crea el grupo, y solo entra quien tiene la invitación. Un móvil puede estar en varios grupos.
+
+## Pasarse partidas sin grupo
 
 1. Quien tiene las partidas: **Ajustes › Copias de seguridad › Exportar copia** y la envía (WhatsApp, correo, AirDrop…).
 2. Quien la recibe: **Importar copia** › **Mezclar**.
@@ -61,14 +72,15 @@ También puedes usar la versión web en Android desde Chrome (menú › *Instala
 |---|---|---|
 | Código | Java nativo, interfaz hecha por código, sin librerías | HTML, CSS y JavaScript sin dependencias |
 | Datos | En el móvil (SharedPreferences) | En el navegador (localStorage) |
+| Grupos | Firebase por REST (`Cloud.java`) | Firebase por REST (`sync.js`) |
 | Sin Internet | Sí | Sí (service worker) |
 | Lógica y pruebas | `Engine.java` · 21 pruebas | `engine.js` (misma lógica) · 15 pruebas |
 
 ```
 android/   Código de la app Android (Gradle)
 web/       App web publicada en GitHub Pages
-tests/     Pruebas de la lógica de la versión web (node tests/engine.test.js)
-docs/      Capturas para esta página
+tests/     Pruebas de la lógica web y un Firebase simulado (tests/mock-firebase.js)
+docs/      Guía de grupos, reglas de Firestore y capturas
 ```
 
 - La web se publica sola en GitHub Pages con cada cambio en `web/` (workflow **Web**).

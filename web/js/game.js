@@ -375,13 +375,19 @@
       const r = rd();
       if (!E.canSave(g, r)) return;
       S.editing = false;
-      if (E.commitEdit(g, r, S.editSnap, Date.now())) { P.save(); P.toast('Ronda corregida · totales recalculados'); }
+      if (E.commitEdit(g, r, S.editSnap, Date.now())) {
+        P.save(); P.toast('Ronda corregida · totales recalculados');
+        if (g.status !== E.ACTIVE) { P.markGame(g); P.syncQuiet(true); }
+      }
       else P.toast('No había cambios');
       render();
       P.updateChrome();
     }
     function undo() {
-      if (E.undo(g, rd(), Date.now())) { P.save(); P.toast('Corrección deshecha'); render(); }
+      if (E.undo(g, rd(), Date.now())) {
+        P.save(); P.toast('Corrección deshecha'); render();
+        if (g.status !== E.ACTIVE) { P.markGame(g); P.syncQuiet(true); }
+      }
     }
 
     function openMenu() {
@@ -404,6 +410,7 @@
         g.status = E.EARLY; g.closed = true; g.ended = Date.now();
         st.activeGame = null;
         P.save();
+        P.markGame(g); P.syncQuiet(true);
         P.popToRoot(0);
         P.openIn(1, P.HistoryDetail(g.id));
         P.toast('Partida guardada sin victoria');
@@ -508,6 +515,7 @@
           g.status = E.COMPLETED; g.closed = true; g.ended = Date.now();
           st.activeGame = null;
           P.save();
+          P.markGame(g); P.syncQuiet(true);
           P.popToRoot(0);
           P.openIn(1, P.HistoryDetail(g.id));
           P.toast('Partida guardada en el historial');
@@ -526,6 +534,7 @@
     if (last) { S.sel = last.order.filter((p) => P.player(p)); S.mode = last.mode; }
     S.rules = E.copy(P.defaultRules());
     S.profileId = S.rules.id;
+    S.group = P.groupById(st.lastGroup) ? st.lastGroup : ((st.groups || [])[0] || {}).id || null;
 
     S.onBack = () => { if (S.step > 0) { S.step--; S.scrollY = 0; P.refresh(); return true; } return false; };
 
@@ -557,6 +566,12 @@
     }
 
     function players(body) {
+      if ((st.groups || []).length) {
+        body.appendChild(h('div', { class: 'text2', style: { fontSize: '13.5px', fontWeight: '500', margin: '10px 2px 8px' } }, 'Grupo de la partida'));
+        body.appendChild(h('div', { class: 'chips' }, st.groups.map((x) => P.chip(x.name, S.group === x.id, () => { S.group = x.id; P.refresh(); }, 'people')),
+          P.chip('Sin grupo', !S.group, () => { S.group = null; P.refresh(); })));
+        body.appendChild(h('div', { class: 'note', style: { margin: '6px 2px 0' } }, S.group ? 'Al cerrarla, se compartirá con el grupo.' : 'Solo se guardará en este móvil.'));
+      }
       body.appendChild(h('div', { style: { textAlign: 'center', fontSize: '24px', fontWeight: '700', margin: '14px 0 8px' } }, 'Orden de reparto'));
       body.appendChild(h('div', { class: 'text2', style: { textAlign: 'center', fontSize: '14px', lineHeight: '1.5', padding: '0 8px 16px' } },
         'Arrastra ≡ para cambiar el orden.', h('br'), 'Se reparte según estos números: el 1 reparte la primera ronda, luego el 2, y así sucesivamente.'));
@@ -683,6 +698,7 @@
       const r = E.copy(S.rules);
       if (S.customized) r.name = 'Personalizadas';
       const g = E.newGame(P.newId('g'), r, S.mode, S.sel, names, colors, Date.now());
+      if (S.group) { g.group = S.group; st.lastGroup = S.group; }
       st.games.push(g);
       st.activeGame = g.id;
       P.save();

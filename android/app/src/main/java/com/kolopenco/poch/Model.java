@@ -32,6 +32,26 @@ final class Model {
         String name;
         int color;
         long created;
+        /** Última vez que se cambió el nombre o el color (para sincronizar con los grupos). */
+        long updated;
+    }
+
+    /** Grupo de juego sincronizado con Firebase (ver Cloud). */
+    static final class Group {
+        String id, name, apiKey, projectId, key;
+        String uid, refresh;
+        boolean owner;
+        /** Jugador local que es «este móvil». */
+        String me;
+        /** idEnElGrupo → idLocal, para jugadores unidos con uno que ya tenía. */
+        Map<String, String> ids = new LinkedHashMap<>();
+        /** Jugadores que ya están en el grupo (ids del grupo). */
+        java.util.Set<String> roster = new java.util.LinkedHashSet<>();
+        List<String> pending = new ArrayList<>();
+        List<String> deleted = new ArrayList<>();
+        List<String> dirtyPlayers = new ArrayList<>();
+        String lastPlayers, lastGames;
+        long lastSync;
     }
 
     static final class Rules {
@@ -181,6 +201,10 @@ final class Model {
         List<Round> rounds = new ArrayList<>();
         /** El usuario ya vio la clasificación final y la cerró. */
         boolean closed;
+        /** Grupo de juego al que pertenece (null = solo en este móvil). */
+        String group;
+        /** Última modificación (para sincronizar). */
+        long updated;
 
         int n() { return order.size(); }
 

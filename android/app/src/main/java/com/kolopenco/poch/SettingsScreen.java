@@ -33,6 +33,7 @@ import java.util.function.Consumer;
 
 /** Ajustes: lista de apartados. */
 class SettingsScreen extends Screen {
+    @Override boolean liveRefresh() { return true; }
     SettingsScreen(MainActivity a) { super(a); }
 
     @Override View build() {
@@ -44,6 +45,9 @@ class SettingsScreen extends Screen {
         body.addView(Ui.listRow(badge(Ico.SLIDERS, Theme.BLUE_HI), "Perfiles de reglas",
                 Ui.plural(st.profiles.size(), "perfil", "perfiles") + " · por defecto: " + def.name,
                 () -> a.push(new ProfilesScreen(a))));
+        body.addView(Ui.listRow(badge(Ico.SYNC, Theme.BLUE_TEXT), "Grupos de juego",
+                st.groups.isEmpty() ? "Comparte partidas con tus amigos" : Ui.plural(st.groups.size(), "grupo", "grupos") + ": " + groupNames(),
+                () -> a.push(new GroupsScreen(a))));
         long lb = st.lastBackup();
         body.addView(Ui.listRow(badge(Ico.BACKUP, Theme.GREEN), "Copias de seguridad",
                 lb == 0 ? "Nunca se ha hecho una copia" : "Última copia: " + Ui.dateTime(lb),
@@ -58,6 +62,12 @@ class SettingsScreen extends Screen {
         return root;
     }
 
+    private String groupNames() {
+        StringBuilder b = new StringBuilder();
+        for (Model.Group g : st.groups) b.append(b.length() > 0 ? ", " : "").append(g.name);
+        return b.toString();
+    }
+
     static View badge(int icon, int color) {
         FrameLayout f = new FrameLayout(Ui.a);
         f.setBackground(Ui.round(Theme.alpha(color, 0.16f), 11));
@@ -68,7 +78,7 @@ class SettingsScreen extends Screen {
 
     private void about() {
         a.info("Poch! " + BuildConfig.VERSION_NAME,
-                "Marcador, historial y estadísticas para partidas de La Pocha.\n\nGratis, sin anuncios y sin Internet: todos los datos se guardan en el móvil. Haz copias de seguridad de vez en cuando.\n\nTipografía Inter (SIL Open Font License).");
+                "Marcador, historial y estadísticas para partidas de La Pocha.\n\nGratis y sin anuncios. Los datos se guardan en el móvil; solo se usa Internet si os unís en un grupo de juego (con vuestro propio Firebase). Haz copias de seguridad de vez en cuando.\n\nTipografía Inter (SIL Open Font License).");
     }
 }
 

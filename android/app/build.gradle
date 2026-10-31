@@ -10,8 +10,8 @@ android {
         applicationId 'com.kolopenco.poch'
         minSdk 24
         targetSdk 35
-        versionCode 6
-        versionName 'Beta 1.1.0'
+        versionCode 7
+        versionName 'Beta 1.2.0'
     }
 
     // La clave de firma no está en el repositorio: la compilación de GitHub la recibe por secretos.

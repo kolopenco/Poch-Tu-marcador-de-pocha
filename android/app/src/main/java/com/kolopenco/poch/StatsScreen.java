@@ -26,6 +26,7 @@ import java.util.function.ToDoubleFunction;
 
 /** Estadísticas globales: comparativa de todos los jugadores o de un grupo elegido. */
 class StatsScreen extends Screen {
+    @Override boolean liveRefresh() { return true; }
     int section;           // 0 General, 1 Rondas, 2 Subastadas
     int sortKey = -1;      // índice de columna; −1 = la primera de la sección
     /** 0 = todos, 1 = seleccionados, 2 = comparativa (solo partidas en las que jugaron juntos). */
