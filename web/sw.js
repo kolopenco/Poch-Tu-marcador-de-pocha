@@ -1,5 +1,5 @@
 /* Poch! · funciona sin Internet: guarda la app en el móvil la primera vez que se abre. */
-const CACHE = 'poch-1.2.2';
+const CACHE = 'poch-1.2.3';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/engine.js', 'js/ui.js', 'js/game.js', 'js/screens.js', 'js/sync.js', 'js/groups.js', 'js/main.js',
@@ -20,7 +20,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    fetch(e.request).then((r) => {
+    // «no-cache»: pregunta siempre al servidor si hay algo nuevo (si no, responde «sin cambios» y es rápido)
+    fetch(e.request, new URL(e.request.url).origin === location.origin ? { cache: 'no-cache' } : undefined).then((r) => {
       if (r.ok && new URL(e.request.url).origin === location.origin) {
         const copy = r.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy));

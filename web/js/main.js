@@ -2,13 +2,13 @@
 (function () {
   'use strict';
   const P = window.P, E = window.Engine, h = P.h, st = P.st;
-  P.VERSION = '1.2.2';
+  P.VERSION = '1.2.3';
 
   const TABS = [['Partida', 'trophy'], ['Historial', 'list'], ['Jugadores', 'people'], ['Estadísticas', 'chart'], ['Ajustes', 'gear']];
   let tab = 0, shown = null;
   const stacks = [];
   const navBtns = [];
-  let content, live, liveText;
+  let content, live, liveText, upd;
 
   P.tab = () => tab;
   P.standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -62,6 +62,61 @@
     if (tab !== 0) { tab = 0; show(); history.pushState({}, ''); }
   });
 
+  // Gesto «atrás» del iPhone: en la app de pantalla de inicio no existe, así que se imita
+  // deslizando desde el borde izquierdo (como en cualquier app de iOS).
+  function swipeBack() {
+    let x0 = null, y0 = 0, dx = 0, el = null;
+    const canBack = () => P.hasOverlay() || stacks[tab].length > 1;
+    document.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      x0 = e.touches.length === 1 && t.clientX < 24 && canBack() ? t.clientX : null;
+      y0 = t.clientY; dx = 0; el = P.hasOverlay() ? null : content;
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+      if (x0 === null) return;
+      const t = e.touches[0];
+      dx = t.clientX - x0;
+      if (Math.abs(t.clientY - y0) > 60 && dx < 40) { x0 = null; if (el) el.style.transform = ''; return; }
+      if (el && dx > 0) { el.style.transition = 'none'; el.style.transform = 'translateX(' + Math.min(dx, window.innerWidth) * 0.5 + 'px)'; }
+    }, { passive: true });
+    document.addEventListener('touchend', () => {
+      if (x0 === null) return;
+      x0 = null;
+      if (el) { el.style.transition = 'transform .18s'; el.style.transform = ''; }
+      if (dx > 80) history.back();
+    }, { passive: true });
+  }
+
+  // ------------------------------------------------------------------ versiones nuevas
+  // El iPhone deja la app «dormida» en memoria y no la vuelve a cargar al abrirla: se comprueba
+  // si hay una versión nueva al volver a ella y se ofrece actualizar con un toque.
+  const newer = (a, b) => {
+    const x = a.split('.').map(Number), y = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+    return false;
+  };
+  let lastCheck = 0;
+  P.reloadApp = async () => {
+    try { const r = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (r) await r.update(); } catch (e) { /* da igual */ }
+    location.reload();
+  };
+  P.checkUpdate = async (manual) => {
+    lastCheck = Date.now();
+    try {
+      const txt = await (await fetch('js/main.js?v=' + Date.now(), { cache: 'no-store' })).text();
+      const m = txt.match(/P\.VERSION = '([\d.]+)'/);
+      if (m && newer(m[1], P.VERSION)) {
+        upd.querySelector('.grow').textContent = 'Nueva versión ' + m[1] + ' disponible';
+        upd.style.display = 'flex';
+        if (manual) P.reloadApp();
+        return true;
+      }
+      if (manual) P.dialog('Poch! está al día', 'Tienes la última versión (' + P.VERSION + ').', null,
+        [{ label: 'Recargar', run: P.reloadApp }, { label: 'Vale', style: 'main' }]);
+    } catch (e) { if (manual) P.toast('Sin conexión: no se ha podido comprobar'); }
+    return false;
+  };
+
   // ------------------------------------------------------------------ arranque
 
   function boot() {
@@ -77,7 +132,16 @@
       navBtns.push(b);
       nav.appendChild(b);
     });
-    app.replaceChildren(content, live, nav);
+    upd = h('button', { id: 'upd', onclick: () => P.reloadApp() }, P.icon('download', 'var(--green)', 18),
+      h('span', { class: 'grow ell' }, 'Nueva versión disponible'), h('span', { class: 'go' }, 'Actualizar'));
+    app.replaceChildren(content, upd, live, nav);
+    if (P.standalone()) swipeBack();
+    setTimeout(() => P.checkUpdate(false), 2500);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastCheck > 60000) P.checkUpdate(false);
+      P.syncQuiet(false).catch(() => {});
+    });
     P.gameTab = P.GameTab();
     stacks.push([P.gameTab], [P.History()], [P.Players()], [P.Stats()], [P.Settings()]);
     history.replaceState({ d: 1 }, '');

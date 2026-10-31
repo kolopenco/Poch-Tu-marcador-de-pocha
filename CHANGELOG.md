@@ -1,5 +1,10 @@
 # Novedades
 
+## 1.2.3 (solo web)
+- Aviso de **versión nueva** con botón «Actualizar» al abrir o volver a la app (el iPhone deja la app dormida y no se recargaba sola).
+- Ajustes › **Buscar actualizaciones**: comprueba y recarga la app.
+- En la app de pantalla de inicio del iPhone, **deslizar desde el borde izquierdo** vuelve atrás, como en cualquier app.
+
 ## 1.2.2
 - Grupo: nueva sección **Jugadores del grupo** con «Añadir jugadores al grupo». Así están todos, aunque no tengan la app: aparecen en todos los móviles y sus partidas se comparten igual.
 - Al unirse, «¿Quién eres tú?» indica qué jugadores ya usa otro móvil, para no crearse dos veces.

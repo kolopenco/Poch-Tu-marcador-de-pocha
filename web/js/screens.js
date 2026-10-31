@@ -528,6 +528,7 @@
       body.appendChild(P.lrow(badge('backup', '#2BC46A'), 'Copias de seguridad', st.lastBackup ? 'Última copia: ' + P.dateTime(st.lastBackup) : 'Nunca se ha hecho una copia', () => P.push(Backup())));
       body.appendChild(P.lrow(badge('people', '#F28B24'), 'Jugadores', P.plural(st.players.length, 'jugador registrado', 'jugadores registrados'), () => P.selectTab(2)));
       if (!P.standalone()) body.appendChild(P.lrow(badge('download', '#FFC83A'), 'Instalar en el móvil', 'Añádela a la pantalla de inicio', () => P.info('Instalar Poch!', P.installText())));
+      body.appendChild(P.lrow(badge('sync', '#2BC46A'), 'Buscar actualizaciones', 'Versión ' + P.VERSION + ' · comprobar y recargar la app', () => P.checkUpdate(true)));
       body.appendChild(P.lrow(badge('info', '#B4BFD2'), 'Acerca de Poch!', 'Versión web ' + P.VERSION, () => P.info('Poch! ' + P.VERSION,
         'Marcador, historial y estadísticas para partidas de La Pocha.\n\nGratis, sin anuncios y sin Internet: todos los datos se guardan en este móvil. Haz copias de seguridad de vez en cuando; sirven también para pasarse partidas con la app de Android.\n\nTipografía Inter (SIL Open Font License).')));
       S.scrollEl = h('div', { class: 'scroll' }, body);
