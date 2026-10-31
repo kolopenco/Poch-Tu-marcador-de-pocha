@@ -29,13 +29,17 @@ jobs:
       - name: Clave de firma (secreto del repositorio)
         env:
           KS: ${{ secrets.POCH_KEYSTORE_B64 }}
+          PW: ${{ secrets.POCH_KEY_PASSWORD }}
         run: |
           if [ -z "$KS" ]; then
             echo "::error::Falta el secreto POCH_KEYSTORE_B64 (Settings › Secrets and variables › Actions)."
             exit 1
           fi
           mkdir -p android/signing
-          echo "$KS" | base64 -d > android/signing/poch.keystore
+          echo "$KS" | tr -d ' \r\n' | base64 -d > android/signing/poch.keystore
+          SIZE=$(stat -c %s android/signing/poch.keystore)
+          HASH=$(sha256sum android/signing/poch.keystore | cut -c1-16)
+                    echo "::notice::Clave: $SIZE bytes, huella $HASH (correcta: 2612 bytes, e8fe04df24dfc7be). Contraseña: ${#PW} caracteres (correcta: 11)."
 
       - uses: actions/setup-java@v5
         with:
